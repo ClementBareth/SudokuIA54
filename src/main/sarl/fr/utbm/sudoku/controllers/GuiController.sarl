@@ -1,0 +1,40 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.controllers
+
+import fr.utbm.sudoku.gui.GuiApps
+import java.net.URL
+import java.util.ResourceBundle
+import javafx.^event.Event
+import javafx.fxml.FXML
+import javafx.fxml.Initializable
+import javafx.scene.control.Button
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+class GuiController implements Initializable {
+
+	var gui : GuiApps
+
+	@FXML
+	var demo : Button
+	
+	new (gui : GuiApps){
+		this.gui = gui
+	}
+
+	
+	@FXML
+	def openGrid(e : Event) {
+		gui.openGrid
+	}
+
+	def initialize(location : URL, resources : ResourceBundle) {
+//		demo.onAction = [ e : ActionEvent |
+//			guiApps.changeScene("grid.fxml")
+//		]
+	}	
+}

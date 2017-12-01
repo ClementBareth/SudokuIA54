@@ -1,7 +1,7 @@
 /** 
  * 
  */
-package gui
+package fr.utbm.sudoku.gui
 
 import io.sarl.core.AgentKilled
 import io.sarl.core.AgentSpawned
@@ -13,13 +13,14 @@ import io.sarl.core.Logging
 import io.sarl.core.MemberJoined
 import io.sarl.core.MemberLeft
 
-agent GuiAgent{
+agent BootAgent{
 
 	uses Logging;
 
-	val gui = new GuiApps()
+	var gui : GuiApps
 	
 	on Initialize {
+		gui = new GuiApps
 		gui.launchGui
 	}
 
