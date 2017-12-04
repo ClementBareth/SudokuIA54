@@ -1,33 +1,53 @@
 /** 
  * 
  */
-package fr.utbm.sudoku.gui
+package fr.utbm.sudoku
 
+import fr.utbm.sudoku.dao.NitriteManager
+import fr.utbm.sudoku.events.Exit
 import io.sarl.core.AgentKilled
 import io.sarl.core.AgentSpawned
+import io.sarl.core.Behaviors
 import io.sarl.core.ContextJoined
 import io.sarl.core.ContextLeft
+import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Destroy
 import io.sarl.core.Initialize
+import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.core.MemberJoined
 import io.sarl.core.MemberLeft
+import io.sarl.util.OpenEventSpaceSpecification
+import java.util.UUID
 
 agent BootAgent{
+	
+	uses Logging, Lifecycle, DefaultContextInteractions, Behaviors;
 
-	uses Logging;
-
-	var gui : GuiApps
+	var app : SudokuApplication
+	
+	val dbManager = new NitriteManager
 	
 	on Initialize {
-		gui = new GuiApps
-		gui.launchGui
+		loggingName = "BootAgent"
+		var ^space = defaultContext.createSpace(
+			typeof(OpenEventSpaceSpecification),
+			UUID::randomUUID
+		)
+		^space.register(asEventListener)
+		app = new SudokuApplication
+		SudokuApplication.defRefSpace(^space)
+		app.launchGui
+		dbManager.initDB
 	}
 
 	on Destroy {
-		// Event trigger when the agent is destroyed from the system.
-		// You should put all the resource releasing statements in this block of code.
 		info("The agent was stopped.")
+		dbManager.close
+	}
+	
+	on Exit {
+		killMe
 	}
 
 	on AgentSpawned {

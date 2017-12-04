@@ -3,7 +3,7 @@
  */
 package fr.utbm.sudoku.controllers
 
-import fr.utbm.sudoku.gui.GuiApps
+import fr.utbm.sudoku.SudokuApplication
 import java.net.URL
 import java.util.ResourceBundle
 import javafx.^event.Event
@@ -17,19 +17,30 @@ import javafx.scene.control.Button
  */
 class GuiController implements Initializable {
 
-	var gui : GuiApps
+	var app : SudokuApplication
+
 
 	@FXML
 	var demo : Button
 	
-	new (gui : GuiApps){
-		this.gui = gui
+	@FXML
+	var saisir : Button
+	
+	new (app : SudokuApplication) {
+		this.app = app
+	}
+	
+	@FXML
+	def askDifficulty(e : Event){
+		var diff = app.askDifficulty
+		var controller = app.openInputGrid()
+		controller.difficulty = diff
 	}
 
 	
 	@FXML
 	def openGrid(e : Event) {
-		gui.openGrid
+		app.openGrid
 	}
 
 	def initialize(location : URL, resources : ResourceBundle) {

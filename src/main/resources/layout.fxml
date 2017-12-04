@@ -9,7 +9,7 @@
    <children>
       <VBox prefHeight="451.0" prefWidth="321.0" spacing="30.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
          <children>
-            <Button fx:id="saisir" mnemonicParsing="false" prefHeight="88.0" prefWidth="335.0" text="Saisir une grille" />
+            <Button fx:id="saisir" mnemonicParsing="false" onAction="#askDifficulty" prefHeight="88.0" prefWidth="335.0" text="Saisir une grille" />
             <Button fx:id="demo" lineSpacing="20.0" mnemonicParsing="false" onAction="#openGrid" prefHeight="80.0" prefWidth="322.0" text="Démonstration" />
          </children>
          <padding>

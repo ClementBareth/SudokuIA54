@@ -1,0 +1,16 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.events
+
+import fr.utbm.sudoku.model.Sudoku
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+event Exit
+
+event SubmitSudoku{
+	var sudoku : Sudoku
+}

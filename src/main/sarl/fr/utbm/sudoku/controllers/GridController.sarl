@@ -3,7 +3,7 @@
  */
 package fr.utbm.sudoku.controllers
 
-import fr.utbm.sudoku.gui.GuiApps
+import fr.utbm.sudoku.SudokuApplication
 import java.net.URL
 import java.util.ResourceBundle
 import javafx.fxml.FXML
@@ -17,7 +17,8 @@ import javafx.scene.layout.GridPane
  */
 class GridController implements Initializable {
 	
-	var gui : GuiApps
+	var app : SudokuApplication
+
 
 	@FXML
 	var grid : GridPane
@@ -28,8 +29,8 @@ class GridController implements Initializable {
 		grid.children.add(label)
 	}
 
-	new (gui : GuiApps) {
-		this.gui = gui
+	new (app : SudokuApplication) {
+		this.app = app
 	}
 	
 }

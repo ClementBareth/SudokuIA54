@@ -1,0 +1,61 @@
+package fr.utbm.sudoku.dao
+
+import fr.utbm.sudoku.model.Difficulty
+import fr.utbm.sudoku.model.Sudoku
+import java.util.ArrayList
+import java.util.List
+import org.dizitart.no2.Nitrite
+import org.dizitart.no2.filters.Filters
+import org.dizitart.no2.objects.ObjectFilter
+import org.dizitart.no2.objects.ObjectRepository
+
+class NitriteManager {
+	
+	var db : Nitrite
+	var repository : ObjectRepository<Sudoku>
+	
+	def initDB{
+		
+		var workingDir = System.getProperty("user.dir")
+		db = Nitrite.builder().compressed()
+		.filePath(workingDir+"/data/sudoku.db")
+        .openOrCreate("user", "password");
+		repository = db.getRepository(Sudoku);     
+	}
+	
+	def getSudokus(diff : Difficulty) : List<Sudoku>{
+		var sudokus = new ArrayList<Sudoku>
+		
+		var cursor = repository.find(
+			Filters.eq("difficulty",diff) as ObjectFilter
+		)
+		for (document : cursor) {
+			sudokus.add(document)
+		}
+		return sudokus;
+	}
+	
+	def getSudoku (name : String): Sudoku{
+		return repository.find(
+			Filters.eq("name", name) as ObjectFilter
+		).firstOrDefault
+	}
+	
+	def deleteSudoku(name : String) {
+		repository.remove(
+			Filters.eq("name", name) as ObjectFilter
+		)
+	}
+	
+	def updateSudoku(sudoku : Sudoku) {
+		repository.update(sudoku)
+	}
+	
+	def addSudoku(sudoku : Sudoku) {
+		repository.insert(sudoku)
+	}
+	
+	def close{
+		db.close
+	}
+}

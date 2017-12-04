@@ -1,0 +1,99 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.controllers
+
+import fr.utbm.sudoku.SudokuApplication
+import fr.utbm.sudoku.model.Difficulty
+import fr.utbm.sudoku.model.Sudoku
+import java.net.URL
+import java.util.ResourceBundle
+import javafx.^event.Event
+import javafx.fxml.FXML
+import javafx.fxml.Initializable
+import javafx.geometry.Pos
+import javafx.scene.control.TextField
+import javafx.scene.layout.GridPane
+import javafx.scene.layout.RowConstraints
+import javafx.scene.shape.Rectangle
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+class InputGridController implements Initializable {
+	
+	var app : SudokuApplication
+	
+	var diff : Difficulty
+
+	@FXML
+	var grid : GridPane
+	
+	def initialize(location : URL, resources : ResourceBundle) {
+		var rc = new RowConstraints();
+		rc.setFillHeight(true)
+		grid.rowConstraints.add(rc)
+		for(var i = 0; i<9; i++){
+			for(var j = 0; j<9; j++){
+				var textField = new TextField();
+				textField.background = null
+				// On limite le nombre de charactères à 1
+				textField.setOnKeyTyped([e | 
+					var maxChars = 1
+					if (textField.text.length >= maxChars) e.consume
+				])
+				textField.alignment = Pos.CENTER				
+				textField.prefHeight = 80	
+				GridPane.setConstraints(textField, i, j)
+				GridPane.setFillHeight(textField, true)
+				GridPane.setFillWidth(textField, true)
+				grid.children.add(textField)
+			}
+		}
+	}
+
+	@FXML
+	def saveSudoku(e : Event){
+		var sudoku = new Sudoku()
+		sudoku.name = "test"
+		sudoku.difficulty = diff
+		for (var i = 0; i < 9; i++) {
+			for (var j = 0; j < 9; j++)
+			{
+				var rectangle = grid.getChildren().get(i * 9 + j) as Rectangle
+				rectangle.get
+				println(textField.text)
+
+			}
+		}
+		app.dao.addSudoku(null);
+	}
+	
+	new (app : SudokuApplication) {
+		this.app = app
+	}
+	
+	def setDifficulty(diff : Difficulty){
+		this.diff = diff;
+	}
+
+	def getNodeByRowColumnIndex : Node(
+
+	final int row,
+
+	final int column, GridPane gridPane) {
+    Node result = null;
+    ObservableList<Node> childrens = gridPane.getChildren();
+
+    for (Node node : childrens) {
+        if(gridPane.getRowIndex(node) == row && gridPane.getColumnIndex(node) == column) {
+            result = node;
+            break;
+}
+    }
+
+    return result;
+}
+	
+}
