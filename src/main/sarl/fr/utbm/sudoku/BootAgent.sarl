@@ -37,8 +37,9 @@ agent BootAgent{
 		^space.register(asEventListener)
 		app = new SudokuApplication
 		SudokuApplication.defRefSpace(^space)
-		app.launchGui
 		dbManager.initDB
+		SudokuApplication.defRefDao(dbManager)	
+		app.launchGui
 	}
 
 	on Destroy {

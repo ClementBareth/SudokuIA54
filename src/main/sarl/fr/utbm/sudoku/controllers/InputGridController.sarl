@@ -7,44 +7,49 @@ import fr.utbm.sudoku.SudokuApplication
 import fr.utbm.sudoku.model.Difficulty
 import fr.utbm.sudoku.model.Sudoku
 import java.net.URL
+import java.util.Optional
 import java.util.ResourceBundle
 import javafx.^event.Event
 import javafx.fxml.FXML
 import javafx.fxml.Initializable
 import javafx.geometry.Pos
+import javafx.scene.control.Button
 import javafx.scene.control.TextField
+import javafx.scene.control.TextInputDialog
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.RowConstraints
-import javafx.scene.shape.Rectangle
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
 class InputGridController implements Initializable {
-	
+
 	var app : SudokuApplication
-	
+
 	var diff : Difficulty
 
 	@FXML
 	var grid : GridPane
 	
+	@FXML
+	var save : Button
+
 	def initialize(location : URL, resources : ResourceBundle) {
 		var rc = new RowConstraints();
 		rc.setFillHeight(true)
 		grid.rowConstraints.add(rc)
-		for(var i = 0; i<9; i++){
-			for(var j = 0; j<9; j++){
+		for (var i = 0; i < 9; i++) {
+			for (var j = 0; j < 9; j++) {
 				var textField = new TextField();
 				textField.background = null
 				// On limite le nombre de charactères à 1
-				textField.setOnKeyTyped([e | 
+				textField.setOnKeyTyped([ e |
 					var maxChars = 1
-					if (textField.text.length >= maxChars) e.consume
+					if(textField.text.length >= maxChars) e.consume
 				])
-				textField.alignment = Pos.CENTER				
-				textField.prefHeight = 80	
+				textField.alignment = Pos.CENTER
+				textField.prefHeight = 80
 				GridPane.setConstraints(textField, i, j)
 				GridPane.setFillHeight(textField, true)
 				GridPane.setFillWidth(textField, true)
@@ -54,46 +59,74 @@ class InputGridController implements Initializable {
 	}
 
 	@FXML
-	def saveSudoku(e : Event){
+	def saveSudoku(e : Event) {
 		var sudoku = new Sudoku()
-		sudoku.name = "test"
 		sudoku.difficulty = diff
 		for (var i = 0; i < 9; i++) {
-			for (var j = 0; j < 9; j++)
-			{
-				var rectangle = grid.getChildren().get(i * 9 + j) as Rectangle
-				rectangle.get
-				println(textField.text)
+			for (var j = 0; j < 9; j++) {
+				var children = grid.getChildren()
+				for(child : children){
+					if (child instanceof TextField) {
+						var text = child.text
+						var row = GridPane.getRowIndex(child)
+						var col = GridPane.getColumnIndex(child)
+						if (text != "") sudoku.setValue(row, col, Integer.parseInt(text))
+					}
+				}
 
 			}
 		}
-		app.dao.addSudoku(null);
+		sudoku.name=askName(false)
+		app.dao.addSudoku(sudoku);
 	}
 	
+	def askName(nameTaken : boolean) : String {
+		var dialog = new TextInputDialog();
+		dialog.initOwner(save.scene.window)		
+		dialog.headerText = "Choisir un nom"
+		dialog.setTitle("Nom");
+		if(!nameTaken){
+			dialog.setContentText("Choisissez un nom");
+		} else {
+			dialog.setContentText("Choisissez un autre nom, celui-ci existe déjà");
+		}
+		var result : Optional<String>
+		result = dialog.showAndWait();
+		if (result.get == "") {
+			askName(false)
+		} else {
+			if (app.getDao().nameExists(result.get)) {
+				askName(true)
+			}
+			
+			return result.get()
+		}
+	}
+
 	new (app : SudokuApplication) {
 		this.app = app
 	}
-	
-	def setDifficulty(diff : Difficulty){
+
+	def setDifficulty(diff : Difficulty) {
 		this.diff = diff;
 	}
-
-	def getNodeByRowColumnIndex : Node(
-
-	final int row,
-
-	final int column, GridPane gridPane) {
-    Node result = null;
-    ObservableList<Node> childrens = gridPane.getChildren();
-
-    for (Node node : childrens) {
-        if(gridPane.getRowIndex(node) == row && gridPane.getColumnIndex(node) == column) {
-            result = node;
-            break;
-}
-    }
-
-    return result;
-}
 	
+	
+
+//	@SuppressWarnings("instance_access_to_static_member")
+//	def static getNodeByRowColumnIndex(row : int, column : int, gridPane : GridPane) : Node {
+//
+//		var result : Node;
+//		var childrens = gridPane.getChildren();
+//
+//		for (node : childrens) {
+//			if (gridPane.getRowIndex(node) == row && gridPane.getColumnIndex(node) == column) {
+//				result = node;
+//				break;
+//			}
+//		}
+//
+//		return result;
+//	}
+
 }

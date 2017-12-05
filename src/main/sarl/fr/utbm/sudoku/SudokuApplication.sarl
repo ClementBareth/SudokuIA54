@@ -33,7 +33,9 @@ class SudokuApplication extends Application implements EventListener {
 		
 	var gridScene : Scene
 	
-	var static dao : NitriteManager
+	var static daoRef : NitriteManager
+	
+	var dao : NitriteManager
 	
 	var ^space : OpenEventSpace
 	
@@ -45,6 +47,7 @@ class SudokuApplication extends Application implements EventListener {
 	def start(primaryStage : Stage) throws Exception {
 		try {
 			setUISpace(refSpace)
+			dao = daoRef
 			var fxmlLoader = new FXMLLoader(new File("src/main/resources/layout.fxml").toURI().toURL());
 			fxmlLoader.controller = new GuiController(this)
 			this.primaryStage = primaryStage
@@ -140,8 +143,8 @@ class SudokuApplication extends Application implements EventListener {
 		refSpace = ref
 	}
 	
-	def static defDao(daoRef : NitriteManager){
-		dao = daoRef
+	def static defRefDao(daoRefS : NitriteManager) {
+		daoRef = daoRefS
 	}
 	
 	def getDao() : NitriteManager{

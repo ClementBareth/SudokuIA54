@@ -6,8 +6,8 @@ import java.util.ArrayList
 import java.util.List
 import org.dizitart.no2.Nitrite
 import org.dizitart.no2.filters.Filters
-import org.dizitart.no2.objects.ObjectFilter
 import org.dizitart.no2.objects.ObjectRepository
+import org.dizitart.no2.objects.filters.ObjectFilters
 
 class NitriteManager {
 	
@@ -15,19 +15,17 @@ class NitriteManager {
 	var repository : ObjectRepository<Sudoku>
 	
 	def initDB{
-		
 		var workingDir = System.getProperty("user.dir")
 		db = Nitrite.builder().compressed()
 		.filePath(workingDir+"/data/sudoku.db")
         .openOrCreate("user", "password");
-		repository = db.getRepository(Sudoku);     
+		repository = db.getRepository(Sudoku);
 	}
 	
 	def getSudokus(diff : Difficulty) : List<Sudoku>{
 		var sudokus = new ArrayList<Sudoku>
-		
 		var cursor = repository.find(
-			Filters.eq("difficulty",diff) as ObjectFilter
+			ObjectFilters.eq("difficulty", diff)
 		)
 		for (document : cursor) {
 			sudokus.add(document)
@@ -37,14 +35,20 @@ class NitriteManager {
 	
 	def getSudoku (name : String): Sudoku{
 		return repository.find(
-			Filters.eq("name", name) as ObjectFilter
+			ObjectFilters.eq("name", name)
 		).firstOrDefault
 	}
 	
 	def deleteSudoku(name : String) {
-		repository.remove(
-			Filters.eq("name", name) as ObjectFilter
+		repository.documentCollection.remove(
+			Filters.eq("name", name)
 		)
+	}
+	
+	def nameExists(name : String) : boolean {
+		repository.find(
+			ObjectFilters.eq("name", name)
+			).length >= 1 		
 	}
 	
 	def updateSudoku(sudoku : Sudoku) {
