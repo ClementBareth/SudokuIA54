@@ -18,6 +18,7 @@ import javafx.scene.control.TextField
 import javafx.scene.control.TextInputDialog
 import javafx.scene.layout.GridPane
 import javafx.scene.layout.RowConstraints
+import org.apache.commons.lang3.StringUtils
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -45,8 +46,14 @@ class InputGridController implements Initializable {
 				textField.background = null
 				// On limite le nombre de charactères à 1
 				textField.setOnKeyTyped([ e |
+					var text = textField.text
 					var maxChars = 1
-					if(textField.text.length >= maxChars) e.consume
+					if (!StringUtils.isNumeric(e.character)) {
+						e.consume
+					}
+					if (text.length >= maxChars) {
+						e.consume
+					}
 				])
 				textField.alignment = Pos.CENTER
 				textField.prefHeight = 80
@@ -78,6 +85,7 @@ class InputGridController implements Initializable {
 		}
 		sudoku.name=askName(false)
 		app.dao.addSudoku(sudoku);
+		app.openHomeStage
 	}
 	
 	def askName(nameTaken : boolean) : String {
@@ -110,23 +118,4 @@ class InputGridController implements Initializable {
 	def setDifficulty(diff : Difficulty) {
 		this.diff = diff;
 	}
-	
-	
-
-//	@SuppressWarnings("instance_access_to_static_member")
-//	def static getNodeByRowColumnIndex(row : int, column : int, gridPane : GridPane) : Node {
-//
-//		var result : Node;
-//		var childrens = gridPane.getChildren();
-//
-//		for (node : childrens) {
-//			if (gridPane.getRowIndex(node) == row && gridPane.getColumnIndex(node) == column) {
-//				result = node;
-//				break;
-//			}
-//		}
-//
-//		return result;
-//	}
-
 }

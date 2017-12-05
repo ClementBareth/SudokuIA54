@@ -6,10 +6,17 @@ package fr.utbm.sudoku.controllers
 import fr.utbm.sudoku.SudokuApplication
 import java.net.URL
 import java.util.ResourceBundle
+import javafx.collections.FXCollections
 import javafx.^event.Event
 import javafx.fxml.FXML
 import javafx.fxml.Initializable
+import javafx.geometry.Pos
+import javafx.scene.Scene
 import javafx.scene.control.Button
+import javafx.scene.control.ListView
+import javafx.scene.layout.StackPane
+import javafx.scene.layout.VBox
+import javafx.geometry.Insets
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -18,7 +25,6 @@ import javafx.scene.control.Button
 class GuiController implements Initializable {
 
 	var app : SudokuApplication
-
 
 	@FXML
 	var demo : Button
@@ -33,14 +39,43 @@ class GuiController implements Initializable {
 	@FXML
 	def askDifficulty(e : Event){
 		var diff = app.askDifficulty
-		var controller = app.openInputGrid()
-		controller.difficulty = diff
+		if (e.target == saisir){
+			var controller = app.openInputGrid()
+			controller.difficulty = diff
+		} else {
+			var root = new VBox();
+			var list = 	new ListView<String>();
+			var items = FXCollections.observableArrayList();
+			var sudokus = app.dao.getSudokus(diff)
+			for(sudoku : sudokus){
+				items.add(sudoku.name)
+			}
+			list.setItems(items)
+			list.editable = true
+			list.onMouseClicked = [ 
+				var index = list.selectionModel.selectedIndex
+				if(index !== -1){
+					var sudoku = sudokus.get(index)
+					app.openGrid(sudoku)
+				}
+			]
+			var stack = new StackPane()
+			stack.getChildren().add(list)			
+			var buttonCancel= new Button("Annuler")
+			buttonCancel.onAction = [
+				app.openHomeStage
+			]
+			root.children.add(stack)
+			root.children.add(buttonCancel)
+			VBox.setMargin(buttonCancel, new Insets(10, 10, 10, 10))
+			app.scene = new Scene(root, 400, 400)
+		}
 	}
 
 	
 	@FXML
 	def openGrid(e : Event) {
-		app.openGrid
+		app.openGrid(null)
 	}
 
 	def initialize(location : URL, resources : ResourceBundle) {
