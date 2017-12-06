@@ -4,9 +4,14 @@
 package fr.utbm.sudoku.controllers
 
 import fr.utbm.sudoku.SudokuApplication
+import fr.utbm.sudoku.events.SpawnRequired
 import fr.utbm.sudoku.model.Sudoku
+import io.sarl.lang.core.Event
+import io.sarl.lang.core.EventListener
+import io.sarl.util.OpenEventSpace
 import java.net.URL
 import java.util.ResourceBundle
+import java.util.UUID
 import javafx.fxml.FXML
 import javafx.fxml.Initializable
 import javafx.geometry.HPos
@@ -21,9 +26,13 @@ import javafx.scene.text.Text
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
-class GridController implements Initializable {
+class GridController implements Initializable, EventListener {
 
 	var app : SudokuApplication
+	
+	var id = UUID::randomUUID
+
+	var ^space : OpenEventSpace
 
 	@FXML
 	var grid : GridPane
@@ -57,9 +66,31 @@ class GridController implements Initializable {
 		app.openHomeStage
 	}
 
-	new (app : SudokuApplication, sudoku : Sudoku) {
+	new (app : SudokuApplication, sudoku : Sudoku, ^space : OpenEventSpace) {
 		this.app = app
 		this.sudoku = sudoku
+		setUISpace(^space)
+		emitToAgents(new SpawnRequired => [it.sudoku = sudoku])
+	}
+	
+	def receiveEvent(^event : Event) {
+		
+	}
+	
+	def getID : UUID {
+		return this.id
 	}
 
+	def setUISpace(^space : OpenEventSpace) {
+		this.^space?.unregister(this)
+		this.^space = ^space
+		this.^space?.register(this)
+	}
+
+	def emitToAgents(^event : Event) : void {
+		if (this.^space !== null) {
+			this.^space.emit(id, ^event)
+		}
+	}
+	
 }

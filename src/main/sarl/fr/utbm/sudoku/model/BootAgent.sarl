@@ -1,0 +1,50 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.model
+
+import fr.utbm.sudoku.EnvAgent
+import fr.utbm.sudoku.SudokuApplication
+import fr.utbm.sudoku.dao.NitriteManager
+import fr.utbm.sudoku.events.Exit
+import io.sarl.core.Behaviors
+import io.sarl.core.DefaultContextInteractions
+import io.sarl.core.Destroy
+import io.sarl.core.Initialize
+import io.sarl.core.Lifecycle
+import io.sarl.core.Logging
+import io.sarl.util.OpenEventSpaceSpecification
+import java.util.UUID
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+agent BootAgent {
+	uses Logging, Lifecycle, DefaultContextInteractions, Behaviors
+
+	val dbManager = new NitriteManager
+
+	on Initialize {
+		loggingName = "BootAgent"
+		var ^space = defaultContext.createSpace(
+			typeof(OpenEventSpaceSpecification),
+			UUID::randomUUID
+		)
+		var app = new SudokuApplication
+		SudokuApplication.defRefSpace(^space)
+		dbManager.initDB
+		SudokuApplication.defRefDao(dbManager)
+		EnvAgent.spawn(app, ^space)
+		^space.register(asEventListener)
+		app.launchGui
+	}
+
+	on Destroy {
+		dbManager.close
+	}
+
+	on Exit {
+		killMe
+	}
+}

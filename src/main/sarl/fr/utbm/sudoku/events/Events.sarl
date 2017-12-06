@@ -14,3 +14,7 @@ event Exit
 event SubmitSudoku{
 	var sudoku : Sudoku
 }
+
+event SpawnRequired{
+	var sudoku : Sudoku
+}

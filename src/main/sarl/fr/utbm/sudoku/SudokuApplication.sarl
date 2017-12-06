@@ -70,7 +70,7 @@ class SudokuApplication extends Application implements EventListener {
 	
 	def openGrid(sudoku : Sudoku) {
 		var fxmlLoader2 = new FXMLLoader(new File("src/main/resources/displaygrid.fxml").toURI().toURL());
-		fxmlLoader2.controller = new GridController(this, sudoku)
+		fxmlLoader2.controller = new GridController(this, sudoku, ^space)
 		var root = fxmlLoader2.load()
 		this.gridScene = new Scene(root)
 		var gd = GraphicsEnvironment.localGraphicsEnvironment.defaultScreenDevice
