@@ -53,11 +53,11 @@ public class Sudoku {
 		return col;
 	}
 
-	public List<Integer> getRegion(int rowStart, int rowEnd, int colStart, int colEnd) {
+	public List<Integer> getBloc(int rowStart, int rowEnd, int colStart, int colEnd) {
 		ArrayList<Integer> region = new ArrayList<>();
-		for (int i = rowStart; i < rowEnd; i++) {
-			for (int j = colStart; j < colEnd; j++) {
-				region.add(this.matrix[i][j]);
+		for (int i = rowStart; i <= rowEnd; i++) {
+			for (int j = colStart; j <= colEnd; j++) {
+				region.add(this.matrix[j][i]);
 			}
 		}
 		return region;

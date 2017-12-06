@@ -70,7 +70,7 @@ class GridController implements Initializable, EventListener {
 		this.app = app
 		this.sudoku = sudoku
 		setUISpace(^space)
-		emitToAgents(new SpawnRequired => [it.sudoku = sudoku])
+		emitToAgents(new SpawnRequired => [it.controller = this])
 	}
 	
 	def receiveEvent(^event : Event) {
@@ -91,6 +91,10 @@ class GridController implements Initializable, EventListener {
 		if (this.^space !== null) {
 			this.^space.emit(id, ^event)
 		}
+	}
+	
+	def getSudoku{
+		return this.sudoku
 	}
 	
 }

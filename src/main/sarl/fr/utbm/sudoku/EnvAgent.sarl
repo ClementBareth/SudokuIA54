@@ -3,27 +3,39 @@
  */
 package fr.utbm.sudoku
 
+import fr.utbm.sudoku.controllers.GridController
+import fr.utbm.sudoku.events.ColAgentSpawned
 import fr.utbm.sudoku.events.Exit
+import fr.utbm.sudoku.events.RowAgentSpawned
 import fr.utbm.sudoku.events.SpawnRequired
+import fr.utbm.sudoku.model.BlocAgent
+import fr.utbm.sudoku.model.ColumnAgent
+import fr.utbm.sudoku.model.RowAgent
 import io.sarl.core.AgentKilled
-import io.sarl.core.AgentSpawned
 import io.sarl.core.Behaviors
 import io.sarl.core.ContextJoined
 import io.sarl.core.ContextLeft
-import io.sarl.core.DefaultContextInteractions
-import io.sarl.core.Destroy
 import io.sarl.core.Initialize
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.core.MemberJoined
 import io.sarl.core.MemberLeft
 import io.sarl.util.OpenEventSpace
+import java.util.ArrayList
+import java.util.UUID
+import java.util.HashMap
+import fr.utbm.sudoku.model.ContextContainer
 
 agent EnvAgent{
 	
-	uses Logging, Lifecycle, DefaultContextInteractions, Behaviors;
+	uses Logging, Lifecycle, Behaviors;
 
 	var app : SudokuApplication
+	
+	var controller : GridController
+	
+	val rowCtxIds = new ArrayList<ContextContainer>
+	val colCtxIds = new ArrayList<ContextContainer>
 	
 	var openSpace : OpenEventSpace
 		
@@ -36,40 +48,42 @@ agent EnvAgent{
 	}
 	
 	on SpawnRequired{
+		this.controller = occurrence.controller
 		info("Spawn command required")
-//		var sudoku = occurrence.sudoku
-//		var rows = new ArrayList<UUID>
-//		var columns = new ArrayList<UUID>
-//		var blocs = new ArrayList<UUID>
-//
-//		for (var j = 0; j < 9; j++) {
-//			rows.add(RowAgent.spawn(j))
-//		}
-//
-//		for (var i = 0; i < 9; i++) {
-//			for (var j = 0; j < 9; j++) {
-//				var startI = i - 3
-//				var startJ = j - 3
-//				if (startI % 3 === 0 && startJ % 3 === 0) {
-//					blocs.add(BlocAgent.spawn(startI, i, startJ, j))
-//				}
-//			}
-//			columns.add(ColumnAgent.spawn(i))
-//		}
-//		info("Region agents spawned")
+		var rows = new ArrayList<UUID>
+		var columns = new ArrayList<UUID>
+		var blocs = new ArrayList<UUID>
+		for (var i = 0; i < 9; i++) {
+			rows.add(RowAgent.spawn(i, this.controller.sudoku.getRow(i)))
+			columns.add(ColumnAgent.spawn(i, this.controller.sudoku.getColumn(i)))
+			for (var j = 0; j < 9; j++) {
+				var startI = i - 2
+				var startJ = j - 2
+				if (startI % 3 === 0 && startJ % 3 === 0) {
+					blocs.add(
+						BlocAgent.spawn(
+							startI, startJ, this.controller.sudoku.getBloc(startI,i,startJ,j), rowCtxIds, colCtxIds
+						)
+					)
+				}
+			}
+		}
+		info("Region agents spawned")
 	}
 
-	on Destroy {
-		info("The agent was stopped.")
+	on RowAgentSpawned {
+		rowCtxIds.add(occurrence.num, new ContextContainer(occurrence.num, occurrence.contextId, occurrence.spaceID))
+	}
+
+	on ColAgentSpawned {
+		colCtxIds.add(occurrence.num, new ContextContainer(occurrence.num, occurrence.contextId, occurrence.spaceID))
 	}
 	
 	on Exit {
 		killMe
 	}
 
-	on AgentSpawned {
-		// A new agent has been spawned in our context.
-	}
+
 
 	on AgentKilled {
 		// A new agent has been killed in our context.

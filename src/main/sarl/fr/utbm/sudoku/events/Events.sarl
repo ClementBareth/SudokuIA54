@@ -3,18 +3,55 @@
  */
 package fr.utbm.sudoku.events
 
+import fr.utbm.sudoku.controllers.GridController
 import fr.utbm.sudoku.model.Sudoku
-
+import java.util.UUID
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
 event Exit
 
-event SubmitSudoku{
+event SubmitSudoku {
 	var sudoku : Sudoku
 }
 
-event SpawnRequired{
-	var sudoku : Sudoku
+event SpawnRequired {
+	var controller : GridController
+}
+
+event RowAgentSpawned {
+	var contextId : UUID
+	var num : Integer
+	var spaceID : UUID
+}
+
+event ColAgentSpawned {
+	var contextId : UUID
+	var num : Integer
+	var spaceID : UUID
+}
+
+event PositionX {
+	var pos : Integer
+	var id : UUID
+
+	new (p : Integer, uuid : UUID) {
+		pos = p
+		id = uuid
+	}
+}
+
+event PositionY {
+	var pos : Integer
+	var id : UUID
+
+	new (p : Integer, uuid : UUID) {
+		pos = p
+		id = uuid
+	}
+}
+
+event FatherAcknowledge{
+	var id : UUID
 }

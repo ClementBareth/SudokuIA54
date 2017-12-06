@@ -1,0 +1,34 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.model
+
+import java.util.UUID
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+class ContextContainer {
+	var num : Integer
+	var contextId : UUID
+	var spaceID : UUID
+	
+	new(n:Integer,c:UUID,s:UUID){
+		num = n;
+		contextId = c;
+		spaceID = s
+	}
+	
+	def getNum:Integer{
+		num
+	}
+	
+	def getContextId : UUID{
+		contextId
+	}
+	
+	def getSpaceID : UUID{
+		spaceID
+	}
+}

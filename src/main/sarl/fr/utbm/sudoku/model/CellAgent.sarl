@@ -3,30 +3,49 @@
  */
 package fr.utbm.sudoku.model
 
+import fr.utbm.sudoku.events.FatherAcknowledge
+import fr.utbm.sudoku.events.PositionX
+import fr.utbm.sudoku.events.PositionY
 import io.sarl.core.AgentKilled
 import io.sarl.core.AgentSpawned
 import io.sarl.core.ContextJoined
 import io.sarl.core.ContextLeft
+import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Destroy
+import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
 import io.sarl.core.Logging
 import io.sarl.core.MemberJoined
 import io.sarl.core.MemberLeft
+import io.sarl.util.Scopes
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
 agent CellAgent {
-	uses Logging
-	
+	uses Logging, ExternalContextAccess, DefaultContextInteractions
+
 	var x : Integer
 	var y : Integer
-
+	
+	var rowCtxId : ContextContainer
+	
+	var colCtxId : ContextContainer
+	
+	@SuppressWarnings("deprecated_member_reference")
 	on Initialize {
-		// Event trigger before the agent begin to live or to be used.
-		// You should put all the initialization statements in this block of code.
-		info("The agent was started.")
+		if (occurrence.parameters.length >= 4) {
+			rowCtxId = occurrence.parameters.get(0) as ContextContainer
+			colCtxId = occurrence.parameters.get(1) as ContextContainer
+			x = occurrence.parameters.get(2) as Integer // row
+			y = occurrence.parameters.get(3) as Integer // col
+			loggingName = "Cell n° (" + x + "," + y + ")"
+			join(rowCtxId.contextId, rowCtxId.spaceID)
+			join(colCtxId.contextId, colCtxId.spaceID)
+		}else{
+			info("AGENT MAL INITIALISE")
+		}
 	}
 
 	on Destroy {
@@ -44,8 +63,14 @@ agent CellAgent {
 	}
 
 	on ContextJoined {
-		// Event trigger when an agent of the level joins a shared context.
-		// Sent to a agent of the same level.
+//		var superScopeX = Scopes::identifiers(rowCtxId.contextId)
+//		info("Sending position to " + rowCtxId.contextId)	
+		emit(
+			new PositionX(x, ID)//,
+//			superScopeX
+		)
+//		info("Position envoyée")
+		emit(new PositionY(y,ID))
 	}
 
 	on ContextLeft {
@@ -61,5 +86,9 @@ agent CellAgent {
 	on MemberLeft {
 		// Event trigger when an agent leaves one of our shared super-holons.
 		// Sent to all members of the considered super-holon.
+	}
+	
+	on FatherAcknowledge{
+		info("retour reçu")
 	}
 }

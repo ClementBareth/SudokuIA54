@@ -3,60 +3,61 @@
  */
 package fr.utbm.sudoku.model
 
-import fr.utbm.sudoku.model.RegionAgent
-import io.sarl.core.AgentKilled
-import io.sarl.core.AgentSpawned
-import io.sarl.core.ContextJoined
-import io.sarl.core.ContextLeft
+import fr.utbm.sudoku.events.FatherAcknowledge
+import fr.utbm.sudoku.events.PositionX
+import fr.utbm.sudoku.events.RowAgentSpawned
+import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Destroy
 import io.sarl.core.Initialize
+import io.sarl.core.InnerContextAccess
+import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.core.MemberJoined
-import io.sarl.core.MemberLeft
+import java.util.HashMap
+import java.util.List
+import java.util.UUID
+import io.sarl.core.Behaviors
+
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
 agent RowAgent extends RegionAgent {
-	uses Logging
+	uses Logging, Lifecycle, InnerContextAccess, DefaultContextInteractions,Behaviors
+	
+	var rowNum : Integer
+	var rowValues : List<Integer>
+	var agents = new HashMap<Integer, UUID>
 
 	on Initialize {
-		// Event trigger before the agent begin to live or to be used.
-		// You should put all the initialization statements in this block of code.
-		info("The agent was started.")
+		
+		if (occurrence.parameters.length >= 2) {
+			this.rowNum = occurrence.parameters.get(0) as Integer
+			this.rowValues = occurrence.parameters.get(1) as List<Integer>
+			loggingName = "RowAgent n° "+rowNum
+		}
+		emit(new RowAgentSpawned => [
+			num = rowNum;
+			contextId = innerContext.ID;
+			spaceID = innerContext.defaultSpace.ID.ID
+		])
 	}
 
 	on Destroy {
-		// Event trigger when the agent is destroyed from the system.
-		// You should put all the resource releasing statements in this block of code.
 		info("The agent was stopped.")
 	}
-
-	on AgentSpawned {
-		// A new agent has been spawned in our context.
+	
+	on PositionX{
+		agents.put(occurrence.pos, occurrence.id)
+		info("Agent ajouté en position " + occurrence.pos)
 	}
-
-	on AgentKilled {
-		// A new agent has been killed in our context.
-	}
-
-	on ContextJoined {
-		// Event trigger when an agent of the level joins a shared context.
-		// Sent to a agent of the same level.
-	}
-
-	on ContextLeft {
-		// Event trigger when an agent of the level jleaves a shared context.
-		// Sent to a agent of the same level.
-	}
-
-	on MemberJoined {
-		// Event trigger when an agent joins one of our shared super-holons.
-		// Sent to all members of the considered super-holon.
-	}
-
-	on MemberLeft {
-		// Event trigger when an agent leaves one of our shared super-holons.
-		// Sent to all members of the considered super-holon.
+	
+	on MemberJoined{
+		if (occurrence.agentType.equals("fr.utbm.sudoku.model.CellAgent")){
+//			info(occurrence.agentType + " : " + occurrence.agentID + " a rejoint " + "RowAgent n° " + rowNum)
+//			info("Nombre d'agents dans la ligne : " + getMemberAgentCount())
+		}	
+//		wake(new FatherAcknowledge=>[id = ID])
+//		agents.put()
 	}
 }
