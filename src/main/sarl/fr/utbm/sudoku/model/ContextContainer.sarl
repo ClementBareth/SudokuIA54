@@ -3,6 +3,7 @@
  */
 package fr.utbm.sudoku.model
 
+import io.sarl.lang.core.EventSpace
 import java.util.UUID
 
 /** 
@@ -12,12 +13,14 @@ import java.util.UUID
 class ContextContainer {
 	var num : Integer
 	var contextId : UUID
-	var spaceID : UUID
+	var ^space : EventSpace
+	var id : UUID
 	
-	new(n:Integer,c:UUID,s:UUID){
+	new(n : Integer, c : UUID, s : EventSpace, i : UUID) {
 		num = n;
 		contextId = c;
-		spaceID = s
+		^space = s
+		id=i
 	}
 	
 	def getNum:Integer{
@@ -28,7 +31,11 @@ class ContextContainer {
 		contextId
 	}
 	
-	def getSpaceID : UUID{
-		spaceID
+	def getSpace : EventSpace {
+		^space
+	}
+	
+	def getId : UUID{
+		id
 	}
 }

@@ -5,7 +5,9 @@ package fr.utbm.sudoku.events
 
 import fr.utbm.sudoku.controllers.GridController
 import fr.utbm.sudoku.model.Sudoku
+import io.sarl.lang.core.EventSpace
 import java.util.UUID
+
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
@@ -23,13 +25,15 @@ event SpawnRequired {
 event RowAgentSpawned {
 	var contextId : UUID
 	var num : Integer
-	var spaceID : UUID
+	var ^space : EventSpace
+	var Id : UUID
 }
 
 event ColAgentSpawned {
 	var contextId : UUID
 	var num : Integer
-	var spaceID : UUID
+	var ^space : EventSpace
+	var Id : UUID
 }
 
 event PositionX {
@@ -41,6 +45,8 @@ event PositionX {
 		id = uuid
 	}
 }
+
+event SolutionFound
 
 event PositionY {
 	var pos : Integer

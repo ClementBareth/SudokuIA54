@@ -26,19 +26,19 @@ import java.util.UUID
 import java.util.HashMap
 import fr.utbm.sudoku.model.ContextContainer
 
-agent EnvAgent{
-	
+agent EnvAgent {
+
 	uses Logging, Lifecycle, Behaviors;
 
 	var app : SudokuApplication
-	
+
 	var controller : GridController
-	
+
 	val rowCtxIds = new ArrayList<ContextContainer>
 	val colCtxIds = new ArrayList<ContextContainer>
-	
+
 	var openSpace : OpenEventSpace
-		
+
 	on Initialize {
 		if (occurrence.parameters.length >= 2) {
 			this.app = occurrence.parameters.get(0) as SudokuApplication
@@ -46,8 +46,8 @@ agent EnvAgent{
 		}
 		openSpace.register(asEventListener)
 	}
-	
-	on SpawnRequired{
+
+	on SpawnRequired {
 		this.controller = occurrence.controller
 		info("Spawn command required")
 		var rows = new ArrayList<UUID>
@@ -62,7 +62,11 @@ agent EnvAgent{
 				if (startI % 3 === 0 && startJ % 3 === 0) {
 					blocs.add(
 						BlocAgent.spawn(
-							startI, startJ, this.controller.sudoku.getBloc(startI,i,startJ,j), rowCtxIds, colCtxIds
+							startI,
+							startJ,
+							this.controller.sudoku.getBloc(startI, i, startJ, j),
+							rowCtxIds,
+							colCtxIds
 						)
 					)
 				}
@@ -72,18 +76,18 @@ agent EnvAgent{
 	}
 
 	on RowAgentSpawned {
-		rowCtxIds.add(occurrence.num, new ContextContainer(occurrence.num, occurrence.contextId, occurrence.spaceID))
+		rowCtxIds.add(occurrence.num,
+			new ContextContainer(occurrence.num, occurrence.contextId, occurrence.^space, occurrence.Id))
 	}
 
 	on ColAgentSpawned {
-		colCtxIds.add(occurrence.num, new ContextContainer(occurrence.num, occurrence.contextId, occurrence.spaceID))
+		colCtxIds.add(occurrence.num,
+			new ContextContainer(occurrence.num, occurrence.contextId, occurrence.^space, occurrence.Id))
 	}
-	
+
 	on Exit {
 		killMe
 	}
-
-
 
 	on AgentKilled {
 		// A new agent has been killed in our context.
@@ -108,5 +112,5 @@ agent EnvAgent{
 		// Event trigger when an agent leaves one of our shared super-holons.
 		// Sent to all members of the considered super-holon.
 	}
-		
+
 }

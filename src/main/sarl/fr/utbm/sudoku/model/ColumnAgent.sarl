@@ -34,7 +34,9 @@ agent ColumnAgent extends RegionAgent {
 		emit(new ColAgentSpawned => [
 			num = colNum;
 			contextId = innerContext.ID;
-			spaceID = innerContext.defaultSpace.ID.ID
+			^space = innerContext.defaultSpace;
+			Id = ID;
+			
 		])
 	}
 

@@ -18,6 +18,8 @@ import io.sarl.core.Logging
 import io.sarl.core.MemberJoined
 import io.sarl.core.MemberLeft
 import io.sarl.util.Scopes
+import io.sarl.core.Behaviors
+import fr.utbm.sudoku.events.SolutionFound
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -28,11 +30,11 @@ agent CellAgent {
 
 	var x : Integer
 	var y : Integer
-	
+
 	var rowCtxId : ContextContainer
-	
+
 	var colCtxId : ContextContainer
-	
+
 	@SuppressWarnings("deprecated_member_reference")
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -41,9 +43,9 @@ agent CellAgent {
 			x = occurrence.parameters.get(2) as Integer // row
 			y = occurrence.parameters.get(3) as Integer // col
 			loggingName = "Cell n° (" + x + "," + y + ")"
-			join(rowCtxId.contextId, rowCtxId.spaceID)
-			join(colCtxId.contextId, colCtxId.spaceID)
-		}else{
+			join(rowCtxId.contextId, rowCtxId.^space.spaceID.ID)
+			join(colCtxId.contextId, colCtxId.^space.spaceID.ID)
+		} else {
 			info("AGENT MAL INITIALISE")
 		}
 	}
@@ -61,16 +63,25 @@ agent CellAgent {
 	on AgentKilled {
 		// A new agent has been killed in our context.
 	}
+	
+	on SolutionFound{
+		info("Received")
+	}
 
 	on ContextJoined {
-//		var superScopeX = Scopes::identifiers(rowCtxId.contextId)
-//		info("Sending position to " + rowCtxId.contextId)	
-		emit(
-			new PositionX(x, ID)//,
-//			superScopeX
-		)
-//		info("Position envoyée")
-		emit(new PositionY(y,ID))
+		if (occurrence.holonContextID.equals(rowCtxId.contextId)) {
+			rowCtxId.^space.emit(
+				new PositionX(x, ID),
+				Scopes.addresses(rowCtxId.^space.getAddress(rowCtxId.id))
+			)
+			emit(new SolutionFound)
+		}
+		if (occurrence.holonContextID.equals(colCtxId.contextId)) {
+			colCtxId.^space.emit(
+				new PositionY(y, ID),
+				Scopes.addresses(colCtxId.^space.getAddress(colCtxId.id))				
+			)
+		}
 	}
 
 	on ContextLeft {
@@ -87,8 +98,8 @@ agent CellAgent {
 		// Event trigger when an agent leaves one of our shared super-holons.
 		// Sent to all members of the considered super-holon.
 	}
-	
-	on FatherAcknowledge{
+
+	on FatherAcknowledge {
 		info("retour reçu")
 	}
 }

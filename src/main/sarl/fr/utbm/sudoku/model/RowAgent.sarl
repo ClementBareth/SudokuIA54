@@ -3,27 +3,25 @@
  */
 package fr.utbm.sudoku.model
 
-import fr.utbm.sudoku.events.FatherAcknowledge
 import fr.utbm.sudoku.events.PositionX
 import fr.utbm.sudoku.events.RowAgentSpawned
+import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Destroy
 import io.sarl.core.Initialize
 import io.sarl.core.InnerContextAccess
-import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.core.MemberJoined
 import java.util.HashMap
 import java.util.List
 import java.util.UUID
-import io.sarl.core.Behaviors
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
 agent RowAgent extends RegionAgent {
-	uses Logging, Lifecycle, InnerContextAccess, DefaultContextInteractions,Behaviors
+	uses Logging, InnerContextAccess, DefaultContextInteractions
 	
 	var rowNum : Integer
 	var rowValues : List<Integer>
@@ -39,7 +37,8 @@ agent RowAgent extends RegionAgent {
 		emit(new RowAgentSpawned => [
 			num = rowNum;
 			contextId = innerContext.ID;
-			spaceID = innerContext.defaultSpace.ID.ID
+			^space = innerContext.defaultSpace;
+			Id = ID;
 		])
 	}
 
@@ -49,15 +48,9 @@ agent RowAgent extends RegionAgent {
 	
 	on PositionX{
 		agents.put(occurrence.pos, occurrence.id)
-		info("Agent ajouté en position " + occurrence.pos)
 	}
 	
 	on MemberJoined{
-		if (occurrence.agentType.equals("fr.utbm.sudoku.model.CellAgent")){
-//			info(occurrence.agentType + " : " + occurrence.agentID + " a rejoint " + "RowAgent n° " + rowNum)
-//			info("Nombre d'agents dans la ligne : " + getMemberAgentCount())
-		}	
-//		wake(new FatherAcknowledge=>[id = ID])
-//		agents.put()
+
 	}
 }
