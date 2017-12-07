@@ -4,6 +4,7 @@
 package fr.utbm.sudoku.controllers
 
 import fr.utbm.sudoku.SudokuApplication
+import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SpawnRequired
 import fr.utbm.sudoku.model.Sudoku
 import io.sarl.lang.core.Event
@@ -38,12 +39,19 @@ class GridController implements Initializable, EventListener {
 	var grid : GridPane
 	
 	@FXML
-	var terminer : Button
+	var start : Button
 	
 	@FXML
 	var sudokuName : Text
 
 	var sudoku : Sudoku
+
+	new (app : SudokuApplication, sudoku : Sudoku, ^space : OpenEventSpace) {
+		this.app = app
+		this.sudoku = sudoku
+		setUISpace(^space)
+		emitToAgents(new SpawnRequired => [it.controller = this])
+	}
 
 	def initialize(location : URL, resources : ResourceBundle) {
 		sudokuName.text = sudoku.name
@@ -61,17 +69,26 @@ class GridController implements Initializable, EventListener {
 		}
 	}
 	
+	// Listeners
+	
 	@FXML
-	def openHome{
+	def openHome {
 		app.openHomeStage
 	}
-
-	new (app : SudokuApplication, sudoku : Sudoku, ^space : OpenEventSpace) {
-		this.app = app
-		this.sudoku = sudoku
-		setUISpace(^space)
-		emitToAgents(new SpawnRequired => [it.controller = this])
+	
+	@FXML
+	def start {
+		emitToAgents(new Resolve)
+//		start.disable = true
 	}
+	
+	// Méthodes graphiques
+	
+	def enableStart{
+		start.disable = false
+	}
+	
+	// Méthodes de communication
 	
 	def receiveEvent(^event : Event) {
 		
@@ -87,7 +104,7 @@ class GridController implements Initializable, EventListener {
 		this.^space?.register(this)
 	}
 
-	def emitToAgents(^event : io.sarl.lang.core.Event) : void {
+	def emitToAgents(^event : Event) : void {
 		if (this.^space !== null) {
 			this.^space.emit(id, ^event)
 		}

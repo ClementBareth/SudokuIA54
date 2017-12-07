@@ -3,8 +3,8 @@
  */
 package fr.utbm.sudoku.model
 
-import io.sarl.core.AgentSpawned
-import io.sarl.core.Destroy
+import fr.utbm.sudoku.events.Resolve
+import io.sarl.core.Behaviors
 import io.sarl.core.Initialize
 import io.sarl.core.InnerContextAccess
 import io.sarl.core.Lifecycle
@@ -18,7 +18,7 @@ import java.util.UUID
  * 
  */
 agent BlocAgent extends RegionAgent {
-	uses Logging, InnerContextAccess, Lifecycle
+	uses Logging, InnerContextAccess, Lifecycle, Behaviors
 	
 	var startRow : Integer
 	var startCol : Integer
@@ -40,19 +40,12 @@ agent BlocAgent extends RegionAgent {
 			if (blocValues.get(i) == 0) {
 				var row = startRow + i / 3 as Integer
 				var col = startCol + i % 3
-//				info("Agent a ajouté en ("+row+","+col+")")
 				agents.put(i, CellAgent.spawnInContext(innerContext, rowCtxIds.get(row), colCtxIds.get(col),row,col))
 			}
 		}
 	}
 
-	on Destroy {
-		// Event trigger when the agent is destroyed from the system.
-		// You should put all the resource releasing statements in this block of code.
-		info("The agent was stopped.")
-	}
-	
-	on AgentSpawned{
-		
+	on Resolve [!it.isFrom(ID)] {
+		wake(new Resolve => [values = blocValues])
 	}
 }

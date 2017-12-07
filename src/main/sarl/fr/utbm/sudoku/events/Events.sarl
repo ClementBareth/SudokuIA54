@@ -6,6 +6,7 @@ package fr.utbm.sudoku.events
 import fr.utbm.sudoku.controllers.GridController
 import fr.utbm.sudoku.model.Sudoku
 import io.sarl.lang.core.EventSpace
+import java.util.List
 import java.util.UUID
 
 /** 
@@ -46,7 +47,9 @@ event PositionX {
 	}
 }
 
-event SolutionFound
+event SolutionFound{
+	var solution : Integer
+}
 
 event RowAndColSpawned
 
@@ -72,4 +75,8 @@ event PositionY {
 
 event FatherAcknowledge{
 	var id : UUID
+}
+
+event Resolve{
+	var values : List<Integer>
 }

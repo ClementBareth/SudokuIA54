@@ -10,7 +10,6 @@
 <?import javafx.scene.text.Font?>
 <?import javafx.scene.text.Text?>
 
-
 <AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="1000.0" prefWidth="1000.0" xmlns="http://javafx.com/javafx/9.0.1" xmlns:fx="http://javafx.com/fxml/1">
    <children>
       <GridPane fx:id="grid" gridLinesVisible="true" layoutX="74.0" layoutY="70.0" prefHeight="800.0" prefWidth="800.0">
@@ -57,6 +56,11 @@
          </font>
       </Text>
       <Button fx:id="terminer" layoutX="775.0" layoutY="913.0" mnemonicParsing="false" onAction="#openHome" text="Terminer">
+         <font>
+            <Font name="Trebuchet MS" size="18.0" />
+         </font>
+      </Button>
+      <Button fx:id="start" disable="true" layoutX="71.0" layoutY="913.0" mnemonicParsing="false" onAction="#start" text="Lancer">
          <font>
             <Font name="Trebuchet MS" size="18.0" />
          </font>

@@ -1,0 +1,36 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.model
+
+import java.util.ArrayList
+import java.util.List
+import java.util.Set
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+capacity SudokuMaths {
+	def evaluateCandidates : List<Integer>
+}
+
+skill SudokuMathsBaseSkill implements SudokuMaths{
+	
+	var values : Set<Integer>
+	
+	new (v : Set<Integer>) {
+		values = v
+	}
+	
+	def evaluateCandidates : List<Integer>{
+		var candidates = new ArrayList<Integer>
+		for(var i=0;i<9;i++){
+			if (!values.contains(i)) {
+				candidates.add(i)
+			}
+		}
+		return candidates
+	}
+	
+}

@@ -6,6 +6,8 @@ package fr.utbm.sudoku.model
 import fr.utbm.sudoku.events.ColAgentSpawned
 import fr.utbm.sudoku.events.ColInitialized
 import fr.utbm.sudoku.events.PositionY
+import fr.utbm.sudoku.events.Resolve
+import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
 import io.sarl.core.InnerContextAccess
@@ -19,7 +21,7 @@ import java.util.UUID
  * 
  */
 agent ColumnAgent extends RegionAgent {
-	uses Logging, InnerContextAccess, DefaultContextInteractions
+	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors
 
 	var colNum : Integer
 	var colValues : List<Integer>
@@ -54,10 +56,13 @@ agent ColumnAgent extends RegionAgent {
 	on PositionY {
 		synchronized (agents) {
 			agents.put(occurrence.pos, occurrence.id)
-			info("Agent "+occurrence.id+" ajouté en " + occurrence.pos)
 			if (agents.size == countZeros) {
 				emit(new ColInitialized => [id = ID])
 			}
 		}
+	}
+
+	on Resolve [!it.isFrom(ID)] {
+		wake(new Resolve => [values = colValues])
 	}
 }

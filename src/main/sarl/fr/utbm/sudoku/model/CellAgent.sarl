@@ -3,30 +3,25 @@
  */
 package fr.utbm.sudoku.model
 
-import fr.utbm.sudoku.events.FatherAcknowledge
 import fr.utbm.sudoku.events.PositionX
 import fr.utbm.sudoku.events.PositionY
+import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
-import io.sarl.core.AgentKilled
-import io.sarl.core.AgentSpawned
 import io.sarl.core.Behaviors
 import io.sarl.core.ContextJoined
-import io.sarl.core.ContextLeft
 import io.sarl.core.DefaultContextInteractions
-import io.sarl.core.Destroy
 import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
 import io.sarl.core.Logging
-import io.sarl.core.MemberJoined
-import io.sarl.core.MemberLeft
 import io.sarl.util.Scopes
+import java.util.HashSet
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
 agent CellAgent {
-	uses Logging, ExternalContextAccess, DefaultContextInteractions,Behaviors
+	uses Logging, ExternalContextAccess, DefaultContextInteractions, SudokuMaths, Behaviors
 
 	var x : Integer
 	var y : Integer
@@ -37,7 +32,11 @@ agent CellAgent {
 	
 	var rowJoined : boolean 
 	var colJoined : boolean
-
+	
+	var nbValuesReceived = new Integer(0)
+	
+	var values = new HashSet<Integer>
+	
 	@SuppressWarnings("deprecated_member_reference")
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -49,13 +48,14 @@ agent CellAgent {
 			join(rowCtxId.contextId, rowCtxId.^space.spaceID.ID)
 			join(colCtxId.contextId, colCtxId.^space.spaceID.ID)
 		}
+		setSkill(new SudokuMathsBaseSkill(values), SudokuMaths)
 	}
 
 	on ContextJoined {
 		if (occurrence.holonContextID.equals(rowCtxId.contextId)) {
 			rowJoined = true
 			rowCtxId.^space.emit(
-				new PositionX(y, ID),
+				new PositionX(y, getID),
 				Scopes.addresses(rowCtxId.^space.getAddress(rowCtxId.id))
 			)
 			emit(new SolutionFound)
@@ -63,12 +63,30 @@ agent CellAgent {
 		if (occurrence.holonContextID.equals(colCtxId.contextId)) {
 			colJoined = true
 			colCtxId.^space.emit(
-				new PositionY(x, ID),
+				new PositionY(x, getID),
 				Scopes.addresses(colCtxId.^space.getAddress(colCtxId.id))				
 			)
 		}
 	}
 
-	on SolutionFound {
+	on Resolve [nbValuesReceived < 3] {
+		synchronized(values){
+			values.addAll(occurrence.values)
+			nbValuesReceived++
+		}
+	}
+	
+	on Resolve [nbValuesReceived == 3]{
+		if (evaluateCandidates.size == 0){
+			emit(
+				new SolutionFound => [ solution = evaluateCandidates.get(0)]			
+				)
+		}
+		info("Possible candidate is : " + evaluateCandidates.get(0) )
+	}
+
+	on SolutionFound [!it.isFrom(ID)] {
+		values.add(occurrence.solution)
+		wake(Resolve)
 	}
 }
