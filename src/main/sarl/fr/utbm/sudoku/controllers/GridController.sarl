@@ -87,7 +87,7 @@ class GridController implements Initializable, EventListener {
 		this.^space?.register(this)
 	}
 
-	def emitToAgents(^event : Event) : void {
+	def emitToAgents(^event : io.sarl.lang.core.Event) : void {
 		if (this.^space !== null) {
 			this.^space.emit(id, ^event)
 		}

@@ -5,7 +5,7 @@ package fr.utbm.sudoku.model
 
 import fr.utbm.sudoku.events.PositionX
 import fr.utbm.sudoku.events.RowAgentSpawned
-import io.sarl.core.Behaviors
+import fr.utbm.sudoku.events.RowInitialized
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Destroy
 import io.sarl.core.Initialize
@@ -22,17 +22,17 @@ import java.util.UUID
  */
 agent RowAgent extends RegionAgent {
 	uses Logging, InnerContextAccess, DefaultContextInteractions
-	
+
 	var rowNum : Integer
 	var rowValues : List<Integer>
 	var agents = new HashMap<Integer, UUID>
 
 	on Initialize {
-		
+
 		if (occurrence.parameters.length >= 2) {
 			this.rowNum = occurrence.parameters.get(0) as Integer
 			this.rowValues = occurrence.parameters.get(1) as List<Integer>
-			loggingName = "RowAgent n° "+rowNum
+			loggingName = "RowAgent n° " + rowNum
 		}
 		emit(new RowAgentSpawned => [
 			num = rowNum;
@@ -42,15 +42,29 @@ agent RowAgent extends RegionAgent {
 		])
 	}
 
+	def countZeros : Integer {
+		var j = 0;
+		for (i : rowValues) {
+			if (i == 0) {
+				j++
+			}
+		}
+		return j;
+	}
+
 	on Destroy {
 		info("The agent was stopped.")
 	}
-	
-	on PositionX{
-		agents.put(occurrence.pos, occurrence.id)
-	}
-	
-	on MemberJoined{
 
+	on PositionX {
+		synchronized (agents) {
+			agents.put(occurrence.pos, occurrence.id)
+			if (agents.size==countZeros){
+				emit (new RowInitialized => [id = ID])
+			}
+		}
+	}
+
+	on MemberJoined {
 	}
 }

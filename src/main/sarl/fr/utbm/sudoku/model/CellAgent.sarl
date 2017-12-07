@@ -6,8 +6,10 @@ package fr.utbm.sudoku.model
 import fr.utbm.sudoku.events.FatherAcknowledge
 import fr.utbm.sudoku.events.PositionX
 import fr.utbm.sudoku.events.PositionY
+import fr.utbm.sudoku.events.SolutionFound
 import io.sarl.core.AgentKilled
 import io.sarl.core.AgentSpawned
+import io.sarl.core.Behaviors
 import io.sarl.core.ContextJoined
 import io.sarl.core.ContextLeft
 import io.sarl.core.DefaultContextInteractions
@@ -18,15 +20,13 @@ import io.sarl.core.Logging
 import io.sarl.core.MemberJoined
 import io.sarl.core.MemberLeft
 import io.sarl.util.Scopes
-import io.sarl.core.Behaviors
-import fr.utbm.sudoku.events.SolutionFound
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
 agent CellAgent {
-	uses Logging, ExternalContextAccess, DefaultContextInteractions
+	uses Logging, ExternalContextAccess, DefaultContextInteractions,Behaviors
 
 	var x : Integer
 	var y : Integer
@@ -34,6 +34,9 @@ agent CellAgent {
 	var rowCtxId : ContextContainer
 
 	var colCtxId : ContextContainer
+	
+	var rowJoined : boolean 
+	var colJoined : boolean
 
 	@SuppressWarnings("deprecated_member_reference")
 	on Initialize {
@@ -45,61 +48,27 @@ agent CellAgent {
 			loggingName = "Cell n° (" + x + "," + y + ")"
 			join(rowCtxId.contextId, rowCtxId.^space.spaceID.ID)
 			join(colCtxId.contextId, colCtxId.^space.spaceID.ID)
-		} else {
-			info("AGENT MAL INITIALISE")
 		}
-	}
-
-	on Destroy {
-		// Event trigger when the agent is destroyed from the system.
-		// You should put all the resource releasing statements in this block of code.
-		info("The agent was stopped.")
-	}
-
-	on AgentSpawned {
-		// A new agent has been spawned in our context.
-	}
-
-	on AgentKilled {
-		// A new agent has been killed in our context.
-	}
-	
-	on SolutionFound{
-		info("Received")
 	}
 
 	on ContextJoined {
 		if (occurrence.holonContextID.equals(rowCtxId.contextId)) {
+			rowJoined = true
 			rowCtxId.^space.emit(
-				new PositionX(x, ID),
+				new PositionX(y, ID),
 				Scopes.addresses(rowCtxId.^space.getAddress(rowCtxId.id))
 			)
 			emit(new SolutionFound)
 		}
 		if (occurrence.holonContextID.equals(colCtxId.contextId)) {
+			colJoined = true
 			colCtxId.^space.emit(
-				new PositionY(y, ID),
+				new PositionY(x, ID),
 				Scopes.addresses(colCtxId.^space.getAddress(colCtxId.id))				
 			)
 		}
 	}
 
-	on ContextLeft {
-		// Event trigger when an agent of the level jleaves a shared context.
-		// Sent to a agent of the same level.
-	}
-
-	on MemberJoined {
-		// Event trigger when an agent joins one of our shared super-holons.
-		// Sent to all members of the considered super-holon.
-	}
-
-	on MemberLeft {
-		// Event trigger when an agent leaves one of our shared super-holons.
-		// Sent to all members of the considered super-holon.
-	}
-
-	on FatherAcknowledge {
-		info("retour reçu")
+	on SolutionFound {
 	}
 }

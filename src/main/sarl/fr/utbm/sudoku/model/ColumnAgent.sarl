@@ -4,6 +4,7 @@
 package fr.utbm.sudoku.model
 
 import fr.utbm.sudoku.events.ColAgentSpawned
+import fr.utbm.sudoku.events.ColInitialized
 import fr.utbm.sudoku.events.PositionY
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
@@ -40,8 +41,23 @@ agent ColumnAgent extends RegionAgent {
 		])
 	}
 
+	def countZeros : Integer {
+		var j = 0;
+		for (i : colValues) {
+			if (i == 0) {
+				j++
+			}
+		}
+		return j;
+	}
+
 	on PositionY {
-		agents.put(occurrence.pos, occurrence.id)
-		info("Agent ajouté en position " + occurrence.pos)
+		synchronized (agents) {
+			agents.put(occurrence.pos, occurrence.id)
+			info("Agent "+occurrence.id+" ajouté en " + occurrence.pos)
+			if (agents.size == countZeros) {
+				emit(new ColInitialized => [id = ID])
+			}
+		}
 	}
 }

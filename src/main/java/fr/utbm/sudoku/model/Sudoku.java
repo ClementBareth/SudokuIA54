@@ -13,11 +13,11 @@ public class Sudoku {
 	@Id
 	private String name;
 
-	public int getValue(int x, int y) {
+	public Integer getValue(int x, int y) {
 		return this.matrix[x][y];
 	}
 
-	public void setValue(int x, int y, int value) {
+	public void setValue(int x, int y, Integer value) {
 		this.matrix[x][y] = value;
 	}
 

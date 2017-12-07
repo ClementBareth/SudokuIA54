@@ -34,12 +34,13 @@ agent BlocAgent extends RegionAgent {
 			this.blocValues = occurrence.parameters.get(2) as List<Integer>
 			this.rowCtxIds = occurrence.parameters.get(3) as List<UUID>
 			this.colCtxIds = occurrence.parameters.get(4) as List<UUID>
-			loggingName = "Bloc n°( " + startRow + ","+startCol+")"
+			loggingName = "Bloc n°(" + startRow + ","+startCol+")"
 		}
 		for (var i = 0; i < 9; i++) {
 			if (blocValues.get(i) == 0) {
-				var row = i / 3 as Integer
-				var col = i % 3 			
+				var row = startRow + i / 3 as Integer
+				var col = startCol + i % 3
+//				info("Agent a ajouté en ("+row+","+col+")")
 				agents.put(i, CellAgent.spawnInContext(innerContext, rowCtxIds.get(row), colCtxIds.get(col),row,col))
 			}
 		}

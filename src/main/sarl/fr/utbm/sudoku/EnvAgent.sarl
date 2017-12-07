@@ -5,11 +5,16 @@ package fr.utbm.sudoku
 
 import fr.utbm.sudoku.controllers.GridController
 import fr.utbm.sudoku.events.ColAgentSpawned
+import fr.utbm.sudoku.events.ColInitialized
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.RowAgentSpawned
+import fr.utbm.sudoku.events.RowAndColInit
+import fr.utbm.sudoku.events.RowAndColSpawned
+import fr.utbm.sudoku.events.RowInitialized
 import fr.utbm.sudoku.events.SpawnRequired
 import fr.utbm.sudoku.model.BlocAgent
 import fr.utbm.sudoku.model.ColumnAgent
+import fr.utbm.sudoku.model.ContextContainer
 import fr.utbm.sudoku.model.RowAgent
 import io.sarl.core.AgentKilled
 import io.sarl.core.Behaviors
@@ -23,8 +28,6 @@ import io.sarl.core.MemberLeft
 import io.sarl.util.OpenEventSpace
 import java.util.ArrayList
 import java.util.UUID
-import java.util.HashMap
-import fr.utbm.sudoku.model.ContextContainer
 
 agent EnvAgent {
 
@@ -38,6 +41,9 @@ agent EnvAgent {
 	val colCtxIds = new ArrayList<ContextContainer>
 
 	var openSpace : OpenEventSpace
+	
+	var rowInit = new Integer(0);
+	var colInit = new Integer(0);
 
 	on Initialize {
 		if (occurrence.parameters.length >= 2) {
@@ -47,28 +53,25 @@ agent EnvAgent {
 		openSpace.register(asEventListener)
 	}
 
-	on SpawnRequired {
+	on SpawnRequired {		
 		this.controller = occurrence.controller
-		info("Spawn command required")
-		var rows = new ArrayList<UUID>
-		var columns = new ArrayList<UUID>
+		info("Spawn command required")	
+		for(var i =0;i<9;i++){
+			RowAgent.spawn(i, this.controller.sudoku.getRow(i))
+			ColumnAgent.spawn(i, this.controller.sudoku.getColumn(i))
+		}
+	}
+	
+	on RowAndColSpawned {
 		var blocs = new ArrayList<UUID>
 		for (var i = 0; i < 9; i++) {
-			rows.add(RowAgent.spawn(i, this.controller.sudoku.getRow(i)))
-			columns.add(ColumnAgent.spawn(i, this.controller.sudoku.getColumn(i)))
 			for (var j = 0; j < 9; j++) {
 				var startI = i - 2
 				var startJ = j - 2
 				if (startI % 3 === 0 && startJ % 3 === 0) {
 					blocs.add(
-						BlocAgent.spawn(
-							startI,
-							startJ,
-							this.controller.sudoku.getBloc(startI, i, startJ, j),
-							rowCtxIds,
-							colCtxIds
-						)
-					)
+						BlocAgent.spawn(startI, startJ, this.controller.sudoku.getBloc(startI, i, startJ, j), rowCtxIds,
+							colCtxIds))
 				}
 			}
 		}
@@ -76,14 +79,56 @@ agent EnvAgent {
 	}
 
 	on RowAgentSpawned {
-		rowCtxIds.add(occurrence.num,
-			new ContextContainer(occurrence.num, occurrence.contextId, occurrence.^space, occurrence.Id))
+		synchronized(rowCtxIds){
+			rowCtxIds.add(occurrence.num,
+				new ContextContainer(occurrence.num, occurrence.contextId, occurrence.^space, occurrence.Id))
+			synchronized (colCtxIds) {
+				if(colCtxIds.size == 9 && rowCtxIds.size == 9){
+					wake(new RowAndColSpawned)
+				}
+			}
+		}
 	}
 
 	on ColAgentSpawned {
-		colCtxIds.add(occurrence.num,
-			new ContextContainer(occurrence.num, occurrence.contextId, occurrence.^space, occurrence.Id))
+		synchronized (colCtxIds) {
+			colCtxIds.add(occurrence.num,
+				new ContextContainer(occurrence.num, occurrence.contextId, occurrence.^space, occurrence.Id))
+			synchronized (rowCtxIds) {
+				if (colCtxIds.size == 9 && rowCtxIds.size == 9) {
+					wake(new RowAndColSpawned)
+				}
+			}
+		}
 	}
+	
+	on RowInitialized{
+		synchronized(rowInit){
+			rowInit ++
+			synchronized (colInit) {
+				if (colInit.equals(9) && rowInit.equals(9)) {
+					wake(new RowAndColInit)
+				}
+			}
+		}
+	}
+	
+	on ColInitialized {
+		synchronized (colInit) {
+			colInit++
+			synchronized (rowInit) {
+				if (colInit.equals(9) && rowInit.equals(9)) {
+					wake(new RowAndColInit)
+				}
+			}
+		}
+	}
+	
+	on RowAndColInit{
+		info("System is initialized")
+	}
+
+
 
 	on Exit {
 		killMe

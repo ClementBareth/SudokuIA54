@@ -48,6 +48,18 @@ event PositionX {
 
 event SolutionFound
 
+event RowAndColSpawned
+
+event RowAndColInit
+
+event RowInitialized{
+	var id : UUID
+}
+
+event ColInitialized {
+	var id : UUID
+}
+
 event PositionY {
 	var pos : Integer
 	var id : UUID
