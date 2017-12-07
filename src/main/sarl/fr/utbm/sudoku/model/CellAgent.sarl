@@ -58,7 +58,6 @@ agent CellAgent {
 				new PositionX(y, getID),
 				Scopes.addresses(rowCtxId.^space.getAddress(rowCtxId.id))
 			)
-			emit(new SolutionFound)
 		}
 		if (occurrence.holonContextID.equals(colCtxId.contextId)) {
 			colJoined = true
@@ -77,16 +76,22 @@ agent CellAgent {
 	}
 	
 	on Resolve [nbValuesReceived == 3]{
-		if (evaluateCandidates.size == 0){
+		if (evaluateCandidates.size == 0) {
+			info("Solution found : " + evaluateCandidates.get(0))
 			emit(
 				new SolutionFound => [ solution = evaluateCandidates.get(0)]			
 				)
+			rowCtxId.^space.emit(
+				new SolutionFound => [solution = evaluateCandidates.get(0)]
+			)
+			colCtxId.^space.emit(new SolutionFound => [solution = evaluateCandidates.get(0)]
+				
+			)
 		}
-		info("Possible candidate is : " + evaluateCandidates.get(0) )
 	}
 
 	on SolutionFound [!it.isFrom(ID)] {
 		values.add(occurrence.solution)
-		wake(Resolve)
+		wake(new Resolve)
 	}
 }

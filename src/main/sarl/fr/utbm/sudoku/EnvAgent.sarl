@@ -21,6 +21,7 @@ import io.sarl.core.AgentKilled
 import io.sarl.core.Behaviors
 import io.sarl.core.ContextJoined
 import io.sarl.core.ContextLeft
+import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
@@ -29,7 +30,6 @@ import io.sarl.core.MemberLeft
 import io.sarl.util.OpenEventSpace
 import java.util.ArrayList
 import java.util.UUID
-import io.sarl.core.DefaultContextInteractions
 
 agent EnvAgent {
 

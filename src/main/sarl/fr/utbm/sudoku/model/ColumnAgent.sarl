@@ -21,7 +21,7 @@ import java.util.UUID
  * 
  */
 agent ColumnAgent extends RegionAgent {
-	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors
+	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors, SudokuMaths
 
 	var colNum : Integer
 	var colValues : List<Integer>
@@ -33,7 +33,7 @@ agent ColumnAgent extends RegionAgent {
 			this.colValues = occurrence.parameters.get(1) as List<Integer>
 			loggingName = "ColumnAgent n° " + colNum
 		}
-		
+		setSkill(new SudokuMathsBaseSkill(colValues.toSet), SudokuMaths)
 		emit(new ColAgentSpawned => [
 			num = colNum;
 			contextId = innerContext.ID;
@@ -64,5 +64,8 @@ agent ColumnAgent extends RegionAgent {
 
 	on Resolve [!it.isFrom(ID)] {
 		wake(new Resolve => [values = colValues])
+		if (evaluateCandidates.size == 0){
+			
+		}
 	}
 }
