@@ -22,7 +22,6 @@ import javafx.geometry.Pos
 import javafx.geometry.VPos
 import javafx.scene.control.Button
 import javafx.scene.control.Label
-import javafx.scene.control.TextField
 import javafx.scene.layout.GridPane
 import javafx.scene.text.Text
 
@@ -61,7 +60,7 @@ class GridController implements Initializable, EventListener {
 		for (var i = 0; i < 9; i++) {
 			for (var j = 0; j < 9; j++) {
 				var label : Label
-				if (sudoku.getValue(i, j) !== 0) {
+				if (sudoku.getValue(i, j) !== null && sudoku.getValue(i, j) !== 0) {
 					label = new Label("" + sudoku.getValue(i, j))
 					
 				}else{

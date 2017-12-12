@@ -21,7 +21,7 @@ import java.util.UUID
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
-agent ColumnAgent extends RegionAgent {
+agent ColumnAgent {
 	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors, SudokuMaths
 
 	var colNum : Integer
@@ -47,7 +47,7 @@ agent ColumnAgent extends RegionAgent {
 	def countZeros : Integer {
 		var j = 0;
 		for (i : colValues) {
-			if (i == 0) {
+			if (i===null || i == 0) {
 				j++
 			}
 		}

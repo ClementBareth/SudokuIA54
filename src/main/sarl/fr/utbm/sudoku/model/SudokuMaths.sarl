@@ -24,7 +24,7 @@ skill SudokuMathsBaseSkill implements SudokuMaths{
 	
 	def evaluateCandidates : ArrayList<Integer> {
 		var candidates = new ArrayList<Integer>
-		for(var i=0;i<9;i++){
+		for(var i=1;i<=9;i++){
 			if (!values.contains(i)) {
 				candidates.add(i)
 			}

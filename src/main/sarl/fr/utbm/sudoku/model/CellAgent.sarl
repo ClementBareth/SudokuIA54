@@ -15,7 +15,6 @@ import fr.utbm.sudoku.events.Values
 import io.sarl.core.Behaviors
 import io.sarl.core.ContextJoined
 import io.sarl.core.DefaultContextInteractions
-import io.sarl.core.Destroy
 import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
 import io.sarl.core.Lifecycle
@@ -148,15 +147,13 @@ agent CellAgent {
 			candidatesLock.unlock
 	
 			if (candidate !== null) {
-//				info("Resolving : "+resolving)
-				info("Solution found : " + candidate)
 				var c = candidate
 				resolvingLock.lock
 				resolving = false
 				resolvingLock.unlock
 				// S'il reste un seul candidat, on émet une solution puis on se suicide
 				emitToAllHolons(new SolutionFound => [solution = c; x = this.x; y = this.y])		
-				killMe
+//				killMe
 			} 
 			else if (hasAtLeasteOneCandidate) {
 				// Sinon s'il y a plus d'un candidat on va essayer de trouver ceux pour lesquel aucune autre solution n'est possible
@@ -206,8 +203,11 @@ agent CellAgent {
 		}
 		
 		if (solutionFound) {
+			resolvingLock.lock
+			resolving = false
+			resolvingLock.unlock
 			emitToAllHolons(new SolutionFound => [solution = occurrence.value; x = this.x; y = this.y])
-			killMe
+//			killMe
 		} else{
 			var searchForCandidateIsOver = true
 			answersReceivedLock.lock
@@ -292,9 +292,9 @@ agent CellAgent {
 		colCtxId.^space.emit(e)
 	}
 	
-	on Destroy {
-		leave(rowCtxId.contextId)
-		leave(colCtxId.contextId)
-	}
+//	on Destroy {
+////		leave(rowCtxId.contextId)
+////		leave(colCtxId.contextId)
+//	}
 }
 		

@@ -22,7 +22,7 @@ import java.util.UUID
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
-agent RowAgent extends RegionAgent {
+agent RowAgent {
 	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors
 
 	var rowNum : Integer
@@ -47,7 +47,7 @@ agent RowAgent extends RegionAgent {
 	def countZeros : Integer {
 		var j = 0;
 		for (i : rowValues) {
-			if (i == 0) {
+			if (i === null || i == 0) {
 				j++
 			}
 		}

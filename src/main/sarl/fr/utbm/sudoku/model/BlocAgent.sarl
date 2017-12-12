@@ -4,8 +4,11 @@
 package fr.utbm.sudoku.model
 
 import fr.utbm.sudoku.events.Resolve
+import fr.utbm.sudoku.events.SolutionFound
+import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.Values
 import io.sarl.core.Behaviors
+import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
 import io.sarl.core.InnerContextAccess
 import io.sarl.core.Lifecycle
@@ -14,14 +17,14 @@ import java.util.ArrayList
 import java.util.HashMap
 import java.util.List
 import java.util.UUID
-import fr.utbm.sudoku.events.ReadyToResolve
+import java.util.concurrent.locks.ReentrantLock
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
-agent BlocAgent extends RegionAgent {
-	uses Logging, InnerContextAccess, Lifecycle, Behaviors
+agent BlocAgent {
+	uses Logging, InnerContextAccess, Lifecycle, Behaviors, DefaultContextInteractions
 	
 	var startRow : Integer
 	var startCol : Integer
@@ -29,6 +32,8 @@ agent BlocAgent extends RegionAgent {
 	var rowCtxIds : List<UUID>
 	var colCtxIds : List<UUID>
 	val agents = new HashMap<Integer, UUID>
+	var valuesLock = new ReentrantLock
+	
 
 	on Initialize {
 		if (occurrence.parameters.length >= 5) {
@@ -40,7 +45,7 @@ agent BlocAgent extends RegionAgent {
 			loggingName = "Bloc n°(" + startRow + ","+startCol+")"
 		}
 		for (var i = 0; i < 9; i++) {
-			if (blocValues.get(i) == 0) {
+			if (blocValues.get(i) === null || blocValues.get(i) == 0) {
 				var row = startRow + i / 3 as Integer
 				var col = startCol + i % 3
 				agents.put(i, CellAgent.spawnInContext(innerContext, rowCtxIds.get(row), colCtxIds.get(col),row,col))
@@ -51,6 +56,17 @@ agent BlocAgent extends RegionAgent {
 	on Resolve [!it.isFrom(ID)] {
 		wake(new Values => [values = new ArrayList<Integer>(blocValues)])
 //		wake(new Resolve )	
+	}
+	
+	on SolutionFound{
+		valuesLock.lock
+		if(!blocValues.contains(occurrence.solution)){
+			blocValues.add(occurrence.solution)
+			valuesLock.unlock
+			emit(new SolutionFoundInBloc => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y])
+		} else {
+			valuesLock.unlock
+		}
 	}
 	
 //	on ReadyToResolve{
