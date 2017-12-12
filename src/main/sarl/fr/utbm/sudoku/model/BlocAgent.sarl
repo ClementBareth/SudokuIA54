@@ -9,6 +9,7 @@ import io.sarl.core.Initialize
 import io.sarl.core.InnerContextAccess
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
+import java.util.ArrayList
 import java.util.HashMap
 import java.util.List
 import java.util.UUID
@@ -46,6 +47,8 @@ agent BlocAgent extends RegionAgent {
 	}
 
 	on Resolve [!it.isFrom(ID)] {
-		wake(new Resolve => [values = blocValues])
+		wake(new Resolve => [values = new ArrayList<Integer>(blocValues)])
+//		wake(new Resolve )
+		
 	}
 }

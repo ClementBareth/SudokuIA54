@@ -4,7 +4,6 @@
 package fr.utbm.sudoku.model
 
 import java.util.ArrayList
-import java.util.List
 import java.util.Set
 
 /** 
@@ -12,7 +11,7 @@ import java.util.Set
  * 
  */
 capacity SudokuMaths {
-	def evaluateCandidates : List<Integer>
+	def evaluateCandidates : ArrayList<Integer>
 }
 
 skill SudokuMathsBaseSkill implements SudokuMaths{
@@ -23,7 +22,7 @@ skill SudokuMathsBaseSkill implements SudokuMaths{
 		values = v
 	}
 	
-	def evaluateCandidates : List<Integer>{
+	def evaluateCandidates : ArrayList<Integer> {
 		var candidates = new ArrayList<Integer>
 		for(var i=0;i<9;i++){
 			if (!values.contains(i)) {

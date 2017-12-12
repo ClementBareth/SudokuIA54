@@ -80,7 +80,6 @@ class InputGridController implements Initializable {
 						if (text != "") sudoku.setValue(row, col, Integer.parseInt(text))
 					}
 				}
-
 			}
 		}
 		sudoku.name=askName(false)

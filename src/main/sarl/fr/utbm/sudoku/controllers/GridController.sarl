@@ -6,6 +6,7 @@ package fr.utbm.sudoku.controllers
 import fr.utbm.sudoku.SudokuApplication
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SpawnRequired
+import fr.utbm.sudoku.events.UpdateSudoku
 import fr.utbm.sudoku.model.Sudoku
 import io.sarl.lang.core.Event
 import io.sarl.lang.core.EventListener
@@ -13,6 +14,7 @@ import io.sarl.util.OpenEventSpace
 import java.net.URL
 import java.util.ResourceBundle
 import java.util.UUID
+import javafx.application.Platform
 import javafx.fxml.FXML
 import javafx.fxml.Initializable
 import javafx.geometry.HPos
@@ -20,6 +22,7 @@ import javafx.geometry.Pos
 import javafx.geometry.VPos
 import javafx.scene.control.Button
 import javafx.scene.control.Label
+import javafx.scene.control.TextField
 import javafx.scene.layout.GridPane
 import javafx.scene.text.Text
 
@@ -30,17 +33,17 @@ import javafx.scene.text.Text
 class GridController implements Initializable, EventListener {
 
 	var app : SudokuApplication
-	
+
 	var id = UUID::randomUUID
 
 	var ^space : OpenEventSpace
 
 	@FXML
 	var grid : GridPane
-	
+
 	@FXML
 	var start : Button
-	
+
 	@FXML
 	var sudokuName : Text
 
@@ -50,50 +53,92 @@ class GridController implements Initializable, EventListener {
 		this.app = app
 		this.sudoku = sudoku
 		setUISpace(^space)
-		emitToAgents(new SpawnRequired => [it.controller = this])
+		emitToAgents(new SpawnRequired => [controller = this])
 	}
 
 	def initialize(location : URL, resources : ResourceBundle) {
 		sudokuName.text = sudoku.name
 		for (var i = 0; i < 9; i++) {
 			for (var j = 0; j < 9; j++) {
-				if(sudoku.getValue(i,j) !== 0){
-					var label = new Label("" + sudoku.getValue(i, j))
-					label.alignment = Pos.CENTER
-					GridPane.setConstraints(label, i, j)
-					GridPane.setHalignment(label, HPos.CENTER)
-					GridPane.setValignment(label, VPos.CENTER)
-					grid.children.add(label)
+				var label : Label
+				if (sudoku.getValue(i, j) !== 0) {
+					label = new Label("" + sudoku.getValue(i, j))
+					
+				}else{
+					label = new Label
 				}
+				label.alignment = Pos.CENTER
+				GridPane.setConstraints(label, i, j)
+				GridPane.setHalignment(label, HPos.CENTER)
+				GridPane.setValignment(label, VPos.CENTER)
+				grid.children.add(label)
 			}
 		}
 	}
 	
 	// Listeners
-	
 	@FXML
 	def openHome {
 		app.openHomeStage
 	}
-	
+
 	@FXML
 	def start {
 		emitToAgents(new Resolve)
-//		start.disable = true
+		// start.disable = true
 	}
-	
+
 	// Méthodes graphiques
 	
-	def enableStart{
+	def updateSudoku(x : Integer, y : Integer, value : Integer) {
+		Platform.runLater([
+			try {
+				sudoku.setValue(x, y, value)
+				setLabel(x,y,value)
+//				var label = new Label("" + value)
+//				label.visible = true
+//				label.alignment = Pos.CENTER
+//				GridPane.setConstraints(label, x, y)
+//				GridPane.setHalignment(label, HPos.CENTER)
+//				GridPane.setValignment(label, VPos.CENTER)
+//				grid.children.add(label)
+			} catch (e : Exception) {
+				e.printStackTrace
+			}
+		])
+	}
+	
+	def setLabel(x : Integer,y: Integer,value : Integer){
+		var label = getLabelAt(x,y)
+		label.text = "" + value
+	}
+	
+	def getLabelAt(x : Integer, y : Integer) : Label {
+		for (var i = 0; i < 9; i++) {
+			for (var j = 0; j < 9; j++) {
+				var children = grid.getChildren()
+				for (child : children) {
+					if (child instanceof Label) {
+						if(GridPane.getRowIndex(child) == x && GridPane.getColumnIndex(child) == y){
+							return child
+						}
+					}
+				}
+			}
+		}
+	}
+
+	def enableStart {
 		start.disable = false
 	}
-	
+
 	// Méthodes de communication
-	
 	def receiveEvent(^event : Event) {
-		
+		if (^event instanceof UpdateSudoku) {
+			updateSudoku(^event.x, ^event.y, ^event.solution)
+		}
 	}
-	
+
 	def getID : UUID {
 		return this.id
 	}
@@ -109,9 +154,9 @@ class GridController implements Initializable, EventListener {
 			this.^space.emit(id, ^event)
 		}
 	}
-	
-	def getSudoku{
+
+	def getSudoku {
 		return this.sudoku
 	}
-	
+
 }

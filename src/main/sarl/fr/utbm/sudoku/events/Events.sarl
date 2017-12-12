@@ -23,6 +23,10 @@ event SpawnRequired {
 	var controller : GridController
 }
 
+event TokenReceived 
+
+event TokenReleased
+
 event RowAgentSpawned {
 	var contextId : UUID
 	var num : Integer
@@ -49,7 +53,10 @@ event PositionX {
 
 event SolutionFound{
 	var solution : Integer
+	var x : Integer
+	var y : Integer
 }
+
 
 event RowAndColSpawned
 
@@ -61,6 +68,18 @@ event RowInitialized{
 
 event ColInitialized {
 	var id : UUID
+}
+
+event SolutionFoundInBloc {
+	var solution : Integer
+	var x : Integer
+	var y : Integer
+}
+
+event UpdateSudoku {
+	var solution : Integer
+	var x : Integer
+	var y : Integer
 }
 
 event PositionY {
@@ -77,6 +96,20 @@ event FatherAcknowledge{
 	var id : UUID
 }
 
+event ReadyToResolve
+
 event Resolve{
 	var values : List<Integer>
+}
+
+event Values{
+	var values : List<Integer>
+}
+
+event AskForCandidate{
+	var value : Integer
+}
+
+event AnswerForCandidate {
+	var value : Integer
 }

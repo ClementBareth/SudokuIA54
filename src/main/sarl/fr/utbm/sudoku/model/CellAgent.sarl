@@ -3,41 +3,53 @@
  */
 package fr.utbm.sudoku.model
 
+import fr.utbm.sudoku.events.AnswerForCandidate
+import fr.utbm.sudoku.events.AskForCandidate
 import fr.utbm.sudoku.events.PositionX
 import fr.utbm.sudoku.events.PositionY
+import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
+import fr.utbm.sudoku.events.TokenReceived
+import fr.utbm.sudoku.events.TokenReleased
+import fr.utbm.sudoku.events.Values
 import io.sarl.core.Behaviors
 import io.sarl.core.ContextJoined
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
+import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
+import io.sarl.lang.core.Event
 import io.sarl.util.Scopes
+import java.util.ArrayList
+import java.util.HashMap
 import java.util.HashSet
-
+import java.util.concurrent.locks.ReentrantLock
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
 agent CellAgent {
-	uses Logging, ExternalContextAccess, DefaultContextInteractions, SudokuMaths, Behaviors
+	uses Logging, ExternalContextAccess, DefaultContextInteractions, SudokuMaths, Behaviors, Lifecycle
 
 	var x : Integer
 	var y : Integer
-
 	var rowCtxId : ContextContainer
-
 	var colCtxId : ContextContainer
-	
-	var rowJoined : boolean 
+	var rowJoined : boolean
 	var colJoined : boolean
-	
 	var nbValuesReceived = new Integer(0)
-	
 	var values = new HashSet<Integer>
-	
-	@SuppressWarnings("deprecated_member_reference")
+	var candidateTested = new HashMap<Integer, Integer>
+
+	var candidateTestedLock = new ReentrantLock
+	var candidatesLock = new ReentrantLock
+
+	var candidates = new ArrayList<Integer>
+	var candidatesAsked = new ArrayList<Integer>
+	var answersReceived = new Integer(0)
+
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
 			rowCtxId = occurrence.parameters.get(0) as ContextContainer
@@ -63,35 +75,159 @@ agent CellAgent {
 			colJoined = true
 			colCtxId.^space.emit(
 				new PositionY(x, getID),
-				Scopes.addresses(colCtxId.^space.getAddress(colCtxId.id))				
+				Scopes.addresses(colCtxId.^space.getAddress(colCtxId.id))
 			)
 		}
 	}
 
-	on Resolve [nbValuesReceived < 3] {
-		synchronized(values){
-			values.addAll(occurrence.values)
-			nbValuesReceived++
-		}
-	}
-	
-	on Resolve [nbValuesReceived == 3]{
-		if (evaluateCandidates.size == 0) {
-			info("Solution found : " + evaluateCandidates.get(0))
-			emit(
-				new SolutionFound => [ solution = evaluateCandidates.get(0)]			
-				)
-			rowCtxId.^space.emit(
-				new SolutionFound => [solution = evaluateCandidates.get(0)]
-			)
-			colCtxId.^space.emit(new SolutionFound => [solution = evaluateCandidates.get(0)]
-				
-			)
-		}
-	}
-
-	on SolutionFound [!it.isFrom(ID)] {
-		values.add(occurrence.solution)
+	on TokenReceived {
 		wake(new Resolve)
 	}
-}
+	/** 
+	 * L'agent attend que ses trois holons lui aient fournit les valeurs
+	 */
+	on Resolve [nbValuesReceived < 3] {
+		// synchronized (values) {
+		if(occurrence.values !== null) values.addAll(occurrence.values)
+		nbValuesReceived++
+		// }
+	}
+
+	on Values {
+		values.addAll(occurrence.values)
+		synchronized (nbValuesReceived) {
+			nbValuesReceived++
+			if (nbValuesReceived == 3) {
+				emitToAllHolons(new ReadyToResolve)
+			}
+		}
+	}
+	/** 
+	 * L'agent commence la résolution du sudoku
+	 */
+	on Resolve [nbValuesReceived == 3] {
+		var isSingleCandidate = false
+		var hasAtLeasteOneCandidate = false
+		var candidate = null : Integer
+		
+		candidatesLock.lock
+		candidates = evaluateCandidates
+		if (candidates.size == 1) {
+//			isSingleCandidate = true
+			candidate = candidates.get(0)
+		}else if (candidates.size > 1) {
+			hasAtLeasteOneCandidate = false
+		}
+		candidatesLock.unlock
+		
+		// S'il reste un seul candidat, on émet une solution puis on se suicide
+		if (candidate !== null) {
+			emitToAllHolons(new SolutionFound => [solution = candidate; x = this.x; y = this.y])
+			killMe
+		} else if (hasAtLeasteOneCandidate) {
+			var candidate = nextCandidateToTest
+			if (candidate !== null) {
+				emitToAllHolons(new AskForCandidate => [value = candidate])
+			}
+		}
+	}
+
+	on AnswerForCandidate {
+		synchronized (answersReceived) {
+			answersReceived++
+			if (answersReceived ==
+				defaultSpace.participants.size + rowCtxId.^space.participants.size + colCtxId.^space.participants.size -
+					6) {
+						relaseToken
+					}
+				}
+			}
+			/** 
+			 * L'agent reçoit une réponse à son AskForCandidate
+			 */
+			on AnswerForCandidate {
+				synchronized (candidateTested) {
+					var nb = candidateTested.get(occurrence.value)
+					if (nb !== null) {
+						candidateTested.put(occurrence.value, nb++)
+						var solutionFound = false
+						if (occurrence.isInDefaultSpace) {
+							if (nb == defaultSpace.participants.size - 2) {
+								solutionFound = true
+							}
+						} else if (occurrence.isInSpace(rowCtxId.^space)) {
+							if (nb == rowCtxId.^space.participants.size - 2) {
+								solutionFound = true
+							}
+						} else if (occurrence.isInSpace(colCtxId.^space)) {
+							if (nb == colCtxId.^space.participants.size - 2) {
+								solutionFound = true
+							}
+						}
+						if (solutionFound) {
+							emitToAllHolons(new SolutionFound => [solution = occurrence.value; x = this.x; y = this.y])
+							killMe
+						}
+					} else {
+						candidateTested.put(occurrence.value, 1)
+						relaseToken
+					}
+				}
+			}
+			/** 
+			 * Une solution a été trouvée dans un holon de l'agent
+			 */
+			on SolutionFound [!it.isFrom(ID)] {
+				synchronized (values) {
+					values.add(occurrence.solution)
+					wake(new Resolve)
+				}
+			}
+			/** 
+			 * L'agent reçoit une demande d'un autre agent pour s'avoir s'il peut acceuilir le candidat passé en paramètre
+			 */
+			on AskForCandidate [!it.isFrom(ID)] {
+				var answer = false
+				candidatesLock.lock
+				if (candidates !== null && occurrence.value !== null) {
+					answer = candidates.contains(occurrence.value)
+				}
+				candidatesLock.unlock
+				if (answer == false) {
+					if (occurrence.isInDefaultSpace) {
+						emit(new AnswerForCandidate => [value = new Integer(occurrence.value)],
+							Scopes::addresses(occurrence.source))
+					} else if (occurrence.isInSpace(rowCtxId.^space)) {
+						rowCtxId.^space.emit(new AnswerForCandidate => [value = new Integer(occurrence.value)],
+							Scopes::addresses(occurrence.source))
+					} else if (occurrence.isInSpace(colCtxId.^space)) {
+						colCtxId.^space.emit(new AnswerForCandidate => [value = new Integer(occurrence.value)],
+							Scopes::addresses(occurrence.source))
+					}
+				}
+			}
+			/** 
+			 * Relâche le token et se met en attente
+			 */
+			def relaseToken {
+				emit(new TokenReleased)
+			}
+			/** 
+			 * Calcul la différence entre les candidats potentiels et les candidats qui ont été sujets d'un AskForCandidate
+			 */
+			def nextCandidateToTest : Integer {
+				for (candidate : candidates) {
+					if (!candidatesAsked.contains(candidate)) {
+						candidatesAsked.add(candidate)
+						return candidate
+					}
+				}
+			}
+
+			def emitToAllHolons(e : Event) {
+				emit(e)
+				rowCtxId.^space.emit(e)
+				colCtxId.^space.emit(e)
+			}
+		}
+		
