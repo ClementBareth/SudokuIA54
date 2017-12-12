@@ -43,7 +43,9 @@ agent CellAgent {
 	var rowJoined : boolean
 	var colJoined : boolean
 	var nbValuesReceived = new Integer(0)
+	
 	var values = new HashSet<Integer>
+	var valuesLock = new ReentrantLock
 	
 	var resolving = true
 	
@@ -60,6 +62,7 @@ agent CellAgent {
 	var answersFalseReceivedLock = new ReentrantLock
 	
 	var candidatesLock = new ReentrantLock
+	var resolvingLock = new ReentrantLock
 
 	var candidates = new ArrayList<Integer>
 	var candidatesAsked = new ArrayList<Integer>
@@ -114,7 +117,6 @@ agent CellAgent {
 		nbValuesReceivedLock.lock
 		values.addAll(occurrence.values)
 		nbValuesReceived++
-//		info("Values received : " + nbValuesReceived)
 		if (nbValuesReceived == 3) {
 		// emit(new ReadyToResolve)
 			nbValuesReceivedLock.unlock
@@ -126,34 +128,44 @@ agent CellAgent {
 	/** 
 	 * L'agent commence la résolution du sudoku
 	 */
-	on Resolve [resolving]{
+	on Resolve{
 		var hasAtLeasteOneCandidate = false
 		var candidate : Integer = null
+		var isResolving = true;
 
-		candidatesLock.lock
-		candidates = evaluateCandidates
-		if (candidates.size == 1) {
-			candidate = candidates.get(0)
-		} else if (candidates.size > 1) {
-			hasAtLeasteOneCandidate = false
+		resolvingLock.lock
+		isResolving = resolving
+		resolvingLock.unlock
+		
+		if(isResolving){
+			candidatesLock.lock
+			candidates = evaluateCandidates
+			if (candidates.size == 1) {
+				candidate = candidates.get(0)
+			} else if (candidates.size > 1) {
+				hasAtLeasteOneCandidate = false
+			}
+			candidatesLock.unlock
+	
+			if (candidate !== null) {
+//				info("Resolving : "+resolving)
+				info("Solution found : " + candidate)
+				var c = candidate
+				resolvingLock.lock
+				resolving = false
+				resolvingLock.unlock
+				// S'il reste un seul candidat, on émet une solution puis on se suicide
+				emitToAllHolons(new SolutionFound => [solution = c; x = this.x; y = this.y])
+				killMe
+			} 
+	//		else if (hasAtLeasteOneCandidate) {
+	//			// Sinon s'il y a plus d'un candidat on va essayer de trouver ceux pour lesquel aucune autre solution n'est possible
+	//			var nextCandidate = nextCandidateToTest
+	//			if (nextCandidate !== null) {
+	//				emitToAllHolons(new AskForCandidate => [value = nextCandidate])
+	//			}
+				// }
 		}
-		candidatesLock.unlock
-
-		if (candidate !== null) {
-			info("Solution found : " + candidate)
-			var c = candidate
-			resolving = false
-			// S'il reste un seul candidat, on émet une solution puis on se suicide
-			emitToAllHolons(new SolutionFound => [solution = c; x = this.x; y = this.y])
-			killMe
-		} 
-//		else if (hasAtLeasteOneCandidate) {
-//			// Sinon s'il y a plus d'un candidat on va essayer de trouver ceux pour lesquel aucune autre solution n'est possible
-//			var nextCandidate = nextCandidateToTest
-//			if (nextCandidate !== null) {
-//				emitToAllHolons(new AskForCandidate => [value = nextCandidate])
-//			}
-//		}
 	}
 
 	/** 
@@ -221,8 +233,14 @@ agent CellAgent {
 	 * Une solution a été trouvée dans un holon de l'agent
 	 */
 	on SolutionFound [!occurrence.isFromMe] {
-		values.add(occurrence.solution)
-		wake(new Resolve)
+		valuesLock.lock
+		if (!values.contains(occurrence.solution)){
+			values.add(occurrence.solution)
+			valuesLock.unlock
+			wake(new Resolve)
+		} else {
+			valuesLock.unlock
+		}
 	}
 	/** 
 	 * L'agent reçoit une demande d'un autre agent pour s'avoir s'il peut acceuilir le candidat passé en paramètre
@@ -270,8 +288,8 @@ agent CellAgent {
 
 	def emitToAllHolons(e : Event) {
 		emit(e)
-//		rowCtxId.^space.emit(e)
-//		colCtxId.^space.emit(e)
+		rowCtxId.^space.emit(e)
+		colCtxId.^space.emit(e)
 	}
 }
 		
