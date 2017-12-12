@@ -111,5 +111,6 @@ event AskForCandidate{
 }
 
 event AnswerForCandidate {
+	var answer : boolean
 	var value : Integer
 }

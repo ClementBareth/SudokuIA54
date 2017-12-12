@@ -7,6 +7,7 @@ import fr.utbm.sudoku.events.PositionX
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.RowAgentSpawned
 import fr.utbm.sudoku.events.RowInitialized
+import fr.utbm.sudoku.events.Values
 import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Destroy
@@ -67,6 +68,6 @@ agent RowAgent extends RegionAgent {
 	}
 
 	on Resolve [!it.isFrom(ID)] {
-		wake(new Resolve => [values = rowValues])
+		wake(new Values => [values = rowValues])
 	}
 }

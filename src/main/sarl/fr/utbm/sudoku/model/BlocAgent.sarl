@@ -4,6 +4,7 @@
 package fr.utbm.sudoku.model
 
 import fr.utbm.sudoku.events.Resolve
+import fr.utbm.sudoku.events.Values
 import io.sarl.core.Behaviors
 import io.sarl.core.Initialize
 import io.sarl.core.InnerContextAccess
@@ -13,6 +14,7 @@ import java.util.ArrayList
 import java.util.HashMap
 import java.util.List
 import java.util.UUID
+import fr.utbm.sudoku.events.ReadyToResolve
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -47,8 +49,11 @@ agent BlocAgent extends RegionAgent {
 	}
 
 	on Resolve [!it.isFrom(ID)] {
-		wake(new Resolve => [values = new ArrayList<Integer>(blocValues)])
-//		wake(new Resolve )
-		
+		wake(new Values => [values = new ArrayList<Integer>(blocValues)])
+//		wake(new Resolve )	
 	}
+	
+//	on ReadyToResolve{
+//		wake 
+//	}
 }

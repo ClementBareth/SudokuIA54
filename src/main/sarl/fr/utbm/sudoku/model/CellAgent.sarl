@@ -21,11 +21,14 @@ import io.sarl.core.Initialize
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.lang.core.Event
+import io.sarl.lang.core.EventSpace
 import io.sarl.util.Scopes
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
+import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
+
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
@@ -41,14 +44,25 @@ agent CellAgent {
 	var colJoined : boolean
 	var nbValuesReceived = new Integer(0)
 	var values = new HashSet<Integer>
-	var candidateTested = new HashMap<Integer, Integer>
+	
+	var resolving = true
+	
+	
+	var answersReceived = new HashMap<UUID,Integer>
+	var answersFalseReceived = new HashMap<UUID, Integer>
+	var spaces = new HashMap<UUID,EventSpace>
+	
+	
+	var candidateInTest : Integer
 
-	var candidateTestedLock = new ReentrantLock
+	var nbValuesReceivedLock = new ReentrantLock
+	var answersReceivedLock = new ReentrantLock
+	var answersFalseReceivedLock = new ReentrantLock
+	
 	var candidatesLock = new ReentrantLock
 
 	var candidates = new ArrayList<Integer>
 	var candidatesAsked = new ArrayList<Integer>
-	var answersReceived = new Integer(0)
 
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -60,6 +74,18 @@ agent CellAgent {
 			join(rowCtxId.contextId, rowCtxId.^space.spaceID.ID)
 			join(colCtxId.contextId, colCtxId.^space.spaceID.ID)
 		}
+		answersReceived.put(defaultContext.ID, 0)
+		answersReceived.put(rowCtxId.id, 0)
+		answersReceived.put(colCtxId.id, 0)
+
+		answersFalseReceived.put(defaultContext.ID, 0)
+		answersFalseReceived.put(rowCtxId.id, 0)
+		answersFalseReceived.put(colCtxId.id, 0)
+
+		spaces.put(defaultContext.ID, defaultSpace)
+		spaces.put(rowCtxId.id, rowCtxId.^space)
+		spaces.put(colCtxId.id, colCtxId.^space)
+		
 		setSkill(new SudokuMathsBaseSkill(values), SudokuMaths)
 	}
 
@@ -83,151 +109,169 @@ agent CellAgent {
 	on TokenReceived {
 		wake(new Resolve)
 	}
-	/** 
-	 * L'agent attend que ses trois holons lui aient fournit les valeurs
-	 */
-	on Resolve [nbValuesReceived < 3] {
-		// synchronized (values) {
-		if(occurrence.values !== null) values.addAll(occurrence.values)
-		nbValuesReceived++
-		// }
-	}
 
 	on Values {
+		nbValuesReceivedLock.lock
 		values.addAll(occurrence.values)
-		synchronized (nbValuesReceived) {
-			nbValuesReceived++
-			if (nbValuesReceived == 3) {
-				emitToAllHolons(new ReadyToResolve)
-			}
+		nbValuesReceived++
+//		info("Values received : " + nbValuesReceived)
+		if (nbValuesReceived == 3) {
+		// emit(new ReadyToResolve)
+			nbValuesReceivedLock.unlock
+			wake(new Resolve)
+		} else {
+			nbValuesReceivedLock.unlock
 		}
 	}
 	/** 
 	 * L'agent commence la résolution du sudoku
 	 */
-	on Resolve [nbValuesReceived == 3] {
-		var isSingleCandidate = false
+	on Resolve [resolving]{
 		var hasAtLeasteOneCandidate = false
-		var candidate = null : Integer
-		
+		var candidate : Integer = null
+
 		candidatesLock.lock
 		candidates = evaluateCandidates
 		if (candidates.size == 1) {
-//			isSingleCandidate = true
 			candidate = candidates.get(0)
-		}else if (candidates.size > 1) {
+		} else if (candidates.size > 1) {
 			hasAtLeasteOneCandidate = false
 		}
 		candidatesLock.unlock
-		
-		// S'il reste un seul candidat, on émet une solution puis on se suicide
+
 		if (candidate !== null) {
-			emitToAllHolons(new SolutionFound => [solution = candidate; x = this.x; y = this.y])
+			info("Solution found : " + candidate)
+			var c = candidate
+			resolving = false
+			// S'il reste un seul candidat, on émet une solution puis on se suicide
+			emitToAllHolons(new SolutionFound => [solution = c; x = this.x; y = this.y])
 			killMe
-		} else if (hasAtLeasteOneCandidate) {
-			var candidate = nextCandidateToTest
-			if (candidate !== null) {
-				emitToAllHolons(new AskForCandidate => [value = candidate])
+		} 
+//		else if (hasAtLeasteOneCandidate) {
+//			// Sinon s'il y a plus d'un candidat on va essayer de trouver ceux pour lesquel aucune autre solution n'est possible
+//			var nextCandidate = nextCandidateToTest
+//			if (nextCandidate !== null) {
+//				emitToAllHolons(new AskForCandidate => [value = nextCandidate])
+//			}
+//		}
+	}
+
+	/** 
+	 * L'agent reçoit une réponse à son AskForCandidate
+	 * Si aucun agent d'un des holons partagés ne peut recevoir le candidat, alors on a une solution
+	 */
+	on AnswerForCandidate {
+		var ctxId : UUID
+		var ^space : EventSpace
+		var solutionFound = false
+		
+		if (occurrence.isInDefaultSpace) {
+			ctxId = defaultContext.ID
+			^space = defaultSpace
+		} else if (occurrence.isInSpace(rowCtxId.^space)) {
+			ctxId = rowCtxId.id
+			^space = rowCtxId.^space
+		} else if (occurrence.isInSpace(colCtxId.^space)) {
+			ctxId = colCtxId.id
+			^space = colCtxId.^space
+		}
+
+		answersReceivedLock.lock
+		var nbAnswers = answersReceived.get(ctxId)
+		nbAnswers ++
+		answersReceived.put(ctxId, nbAnswers);
+		answersReceivedLock.unlock
+		
+		if (occurrence.answer == false) {
+			answersFalseReceivedLock.lock
+			var nbAnswersFalse = answersFalseReceived.get(ctxId)
+			nbAnswersFalse++
+			answersFalseReceived.put(ctxId, nbAnswersFalse);
+			if (nbAnswersFalse == ^space.participants.size - 2) {
+				solutionFound = true
+			}
+			answersFalseReceivedLock.unlock
+		}
+		
+		if (solutionFound) {
+			emitToAllHolons(new SolutionFound => [solution = occurrence.value; x = this.x; y = this.y])
+			killMe
+		} else{
+			var searchForCandidateIsOver = true
+			answersReceivedLock.lock
+			for(entry : answersReceived.entrySet){
+				var nbAnswersReceived = entry.value
+				var participants = spaces.get(entry.key).participants.size - 2
+				if (participants != nbAnswersReceived) {
+					searchForCandidateIsOver = false
+				}
+			}
+			answersReceivedLock.unlock
+			if (searchForCandidateIsOver) {
+				// Pas de solution trouvée et toutes les réponses sont arrivées donc on remet les compteurs à 0			
+				for (id : answersReceived.keySet) {
+					answersReceived.put(id, 0)
+					answersFalseReceived.put(id, 0)
+				}
+				wake (new Resolve)
+			}
+		}
+	}
+	/** 
+	 * Une solution a été trouvée dans un holon de l'agent
+	 */
+	on SolutionFound [!occurrence.isFromMe] {
+		values.add(occurrence.solution)
+		wake(new Resolve)
+	}
+	/** 
+	 * L'agent reçoit une demande d'un autre agent pour s'avoir s'il peut acceuilir le candidat passé en paramètre
+	 */
+	on AskForCandidate [!it.isFrom(ID)] {
+		var answerEvent : AnswerForCandidate
+		
+		candidatesLock.lock
+		candidates = evaluateCandidates
+		answerEvent = new AnswerForCandidate => [
+			answer = candidates.contains(occurrence.value);
+			value = new Integer(occurrence.value)
+		]
+		candidatesLock.unlock
+		
+		if (occurrence.isInDefaultSpace) {
+			emit(answerEvent,
+				Scopes::addresses(occurrence.source))
+		} else if (occurrence.isInSpace(rowCtxId.^space)) {
+			rowCtxId.^space.emit(answerEvent,
+				Scopes::addresses(occurrence.source))
+		} else if (occurrence.isInSpace(colCtxId.^space)) {
+			colCtxId.^space.emit(answerEvent,
+				Scopes::addresses(occurrence.source))
+		}
+	}
+	/** 
+	 * Relâche le token et se met en attente
+	 */
+	def relaseToken {
+		emit(new TokenReleased)
+	}
+	/** 
+	 * Calcul la différence entre les candidats potentiels et les candidats qui ont été sujets d'un AskForCandidate
+	 */
+	def nextCandidateToTest : Integer {
+		for (candidate : candidates) {
+			if (!candidatesAsked.contains(candidate)) {
+				candidatesAsked.add(candidate)
+				this.candidateInTest = candidate
+				return candidate
 			}
 		}
 	}
 
-	on AnswerForCandidate {
-		synchronized (answersReceived) {
-			answersReceived++
-			if (answersReceived ==
-				defaultSpace.participants.size + rowCtxId.^space.participants.size + colCtxId.^space.participants.size -
-					6) {
-						relaseToken
-					}
-				}
-			}
-			/** 
-			 * L'agent reçoit une réponse à son AskForCandidate
-			 */
-			on AnswerForCandidate {
-				synchronized (candidateTested) {
-					var nb = candidateTested.get(occurrence.value)
-					if (nb !== null) {
-						candidateTested.put(occurrence.value, nb++)
-						var solutionFound = false
-						if (occurrence.isInDefaultSpace) {
-							if (nb == defaultSpace.participants.size - 2) {
-								solutionFound = true
-							}
-						} else if (occurrence.isInSpace(rowCtxId.^space)) {
-							if (nb == rowCtxId.^space.participants.size - 2) {
-								solutionFound = true
-							}
-						} else if (occurrence.isInSpace(colCtxId.^space)) {
-							if (nb == colCtxId.^space.participants.size - 2) {
-								solutionFound = true
-							}
-						}
-						if (solutionFound) {
-							emitToAllHolons(new SolutionFound => [solution = occurrence.value; x = this.x; y = this.y])
-							killMe
-						}
-					} else {
-						candidateTested.put(occurrence.value, 1)
-						relaseToken
-					}
-				}
-			}
-			/** 
-			 * Une solution a été trouvée dans un holon de l'agent
-			 */
-			on SolutionFound [!it.isFrom(ID)] {
-				synchronized (values) {
-					values.add(occurrence.solution)
-					wake(new Resolve)
-				}
-			}
-			/** 
-			 * L'agent reçoit une demande d'un autre agent pour s'avoir s'il peut acceuilir le candidat passé en paramètre
-			 */
-			on AskForCandidate [!it.isFrom(ID)] {
-				var answer = false
-				candidatesLock.lock
-				if (candidates !== null && occurrence.value !== null) {
-					answer = candidates.contains(occurrence.value)
-				}
-				candidatesLock.unlock
-				if (answer == false) {
-					if (occurrence.isInDefaultSpace) {
-						emit(new AnswerForCandidate => [value = new Integer(occurrence.value)],
-							Scopes::addresses(occurrence.source))
-					} else if (occurrence.isInSpace(rowCtxId.^space)) {
-						rowCtxId.^space.emit(new AnswerForCandidate => [value = new Integer(occurrence.value)],
-							Scopes::addresses(occurrence.source))
-					} else if (occurrence.isInSpace(colCtxId.^space)) {
-						colCtxId.^space.emit(new AnswerForCandidate => [value = new Integer(occurrence.value)],
-							Scopes::addresses(occurrence.source))
-					}
-				}
-			}
-			/** 
-			 * Relâche le token et se met en attente
-			 */
-			def relaseToken {
-				emit(new TokenReleased)
-			}
-			/** 
-			 * Calcul la différence entre les candidats potentiels et les candidats qui ont été sujets d'un AskForCandidate
-			 */
-			def nextCandidateToTest : Integer {
-				for (candidate : candidates) {
-					if (!candidatesAsked.contains(candidate)) {
-						candidatesAsked.add(candidate)
-						return candidate
-					}
-				}
-			}
-
-			def emitToAllHolons(e : Event) {
-				emit(e)
-				rowCtxId.^space.emit(e)
-				colCtxId.^space.emit(e)
-			}
-		}
+	def emitToAllHolons(e : Event) {
+		emit(e)
+//		rowCtxId.^space.emit(e)
+//		colCtxId.^space.emit(e)
+	}
+}
 		

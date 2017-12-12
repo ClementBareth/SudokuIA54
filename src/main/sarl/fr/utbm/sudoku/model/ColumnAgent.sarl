@@ -7,6 +7,7 @@ import fr.utbm.sudoku.events.ColAgentSpawned
 import fr.utbm.sudoku.events.ColInitialized
 import fr.utbm.sudoku.events.PositionY
 import fr.utbm.sudoku.events.Resolve
+import fr.utbm.sudoku.events.Values
 import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
@@ -63,7 +64,7 @@ agent ColumnAgent extends RegionAgent {
 	}
 
 	on Resolve [!it.isFrom(ID)] {
-		wake(new Resolve => [values = colValues])
+		wake(new Values => [values = colValues])
 		if (evaluateCandidates.size == 0){
 			
 		}
