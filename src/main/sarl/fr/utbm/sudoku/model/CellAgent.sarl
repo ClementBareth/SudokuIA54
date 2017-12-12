@@ -7,7 +7,6 @@ import fr.utbm.sudoku.events.AnswerForCandidate
 import fr.utbm.sudoku.events.AskForCandidate
 import fr.utbm.sudoku.events.PositionX
 import fr.utbm.sudoku.events.PositionY
-import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.TokenReceived
@@ -16,6 +15,7 @@ import fr.utbm.sudoku.events.Values
 import io.sarl.core.Behaviors
 import io.sarl.core.ContextJoined
 import io.sarl.core.DefaultContextInteractions
+import io.sarl.core.Destroy
 import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
 import io.sarl.core.Lifecycle
@@ -155,16 +155,16 @@ agent CellAgent {
 				resolving = false
 				resolvingLock.unlock
 				// S'il reste un seul candidat, on émet une solution puis on se suicide
-				emitToAllHolons(new SolutionFound => [solution = c; x = this.x; y = this.y])
+				emitToAllHolons(new SolutionFound => [solution = c; x = this.x; y = this.y])		
 				killMe
 			} 
-	//		else if (hasAtLeasteOneCandidate) {
-	//			// Sinon s'il y a plus d'un candidat on va essayer de trouver ceux pour lesquel aucune autre solution n'est possible
-	//			var nextCandidate = nextCandidateToTest
-	//			if (nextCandidate !== null) {
-	//				emitToAllHolons(new AskForCandidate => [value = nextCandidate])
-	//			}
-				// }
+			else if (hasAtLeasteOneCandidate) {
+				// Sinon s'il y a plus d'un candidat on va essayer de trouver ceux pour lesquel aucune autre solution n'est possible
+				var nextCandidate = nextCandidateToTest
+				if (nextCandidate !== null) {
+					emitToAllHolons(new AskForCandidate => [value = nextCandidate])
+				}
+			 }
 		}
 	}
 
@@ -290,6 +290,11 @@ agent CellAgent {
 		emit(e)
 		rowCtxId.^space.emit(e)
 		colCtxId.^space.emit(e)
+	}
+	
+	on Destroy {
+		leave(rowCtxId.contextId)
+		leave(colCtxId.contextId)
 	}
 }
 		
