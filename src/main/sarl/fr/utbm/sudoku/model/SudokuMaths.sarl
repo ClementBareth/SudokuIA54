@@ -31,5 +31,5 @@ skill SudokuMathsBaseSkill implements SudokuMaths{
 		}
 		return candidates
 	}
-	
 }
+

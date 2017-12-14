@@ -18,6 +18,7 @@ import java.util.HashMap
 import java.util.List
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
+import fr.utbm.sudoku.behaviors.RegionAgentBehavior
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -36,6 +37,8 @@ agent BlocAgent {
 	
 
 	on Initialize {
+		registerBehavior(new RegionAgentBehavior(this))
+		
 		if (occurrence.parameters.length >= 5) {
 			this.startRow = occurrence.parameters.get(0) as Integer
 			this.startCol = occurrence.parameters.get(1) as Integer

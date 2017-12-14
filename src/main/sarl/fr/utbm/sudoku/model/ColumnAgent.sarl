@@ -3,6 +3,7 @@
  */
 package fr.utbm.sudoku.model
 
+import fr.utbm.sudoku.behaviors.RegionAgentBehavior
 import fr.utbm.sudoku.events.ColAgentSpawned
 import fr.utbm.sudoku.events.ColInitialized
 import fr.utbm.sudoku.events.PositionY
@@ -29,6 +30,8 @@ agent ColumnAgent {
 	var agents = new  HashMap<Integer,UUID>
 
 	on Initialize {
+		
+		registerBehavior(new RegionAgentBehavior(this))
 		if (occurrence.parameters.length >= 2) {
 			this.colNum = occurrence.parameters.get(0) as Integer
 			this.colValues = occurrence.parameters.get(1) as List<Integer>
