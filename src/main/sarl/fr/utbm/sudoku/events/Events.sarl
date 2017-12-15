@@ -4,6 +4,7 @@
 package fr.utbm.sudoku.events
 
 import fr.utbm.sudoku.controllers.GridController
+import fr.utbm.sudoku.model.RegionTypeEnum
 import fr.utbm.sudoku.model.Sudoku
 import io.sarl.lang.core.EventSpace
 import java.util.List
@@ -106,11 +107,15 @@ event Values{
 	var values : List<Integer>
 }
 
+event SendMessages
+
 event AskForCandidate{
 	var value : Integer
+	var type : RegionTypeEnum
 }
 
 event AnswerForCandidate {
 	var answer : boolean
 	var value : Integer
+	var type : RegionTypeEnum
 }

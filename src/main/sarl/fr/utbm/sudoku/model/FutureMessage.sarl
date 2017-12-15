@@ -1,0 +1,29 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.model
+
+import io.sarl.lang.core.Event
+import io.sarl.lang.core.EventSpace
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+class FutureMessage {
+	var e : Event 
+	var ^space : EventSpace
+	
+	new (e:Event,s:EventSpace){
+		this.e = e;
+		this.^space = s
+	}
+	
+	def getEvent{
+		e
+	}
+	
+	def getSpace{
+		^space
+	}
+}

@@ -9,6 +9,7 @@ import fr.utbm.sudoku.events.PositionX
 import fr.utbm.sudoku.events.PositionY
 import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.Resolve
+import fr.utbm.sudoku.events.SendMessages
 import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
@@ -20,6 +21,7 @@ import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
+import io.sarl.core.Schedules
 import io.sarl.lang.core.Event
 import io.sarl.lang.core.EventSpace
 import io.sarl.util.Scopes
@@ -27,6 +29,7 @@ import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
 import java.util.UUID
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.ReentrantLock
 
 /** 
@@ -34,7 +37,7 @@ import java.util.concurrent.locks.ReentrantLock
  * 
  */
 agent CellAgent {
-	uses Logging, ExternalContextAccess, DefaultContextInteractions, SudokuMaths, Behaviors, Lifecycle
+	uses Logging, ExternalContextAccess, DefaultContextInteractions, SudokuMaths, Behaviors
 
 	var x : Integer
 	var y : Integer
@@ -64,7 +67,6 @@ agent CellAgent {
 	var candidatesAskedLock = new ReentrantLock
 	var candidatesAsked = new ArrayList<Integer>
 	val sendAnswerLock = new ReentrantLock
-	val answeringLock = new ReentrantLock
 
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -89,6 +91,7 @@ agent CellAgent {
 		spaces.put(colCtxId.id, colCtxId.^space)
 
 		setSkill(new SudokuMathsBaseSkill(values), SudokuMaths)
+		wake (new SendMessages)
 	}
 
 	on ContextJoined {
@@ -156,7 +159,7 @@ agent CellAgent {
 				nextCandidateToTest
 				if (candidateInTest !== null) {
 					waitingAnswers = true									
-					emitToAllHolons(new AskForCandidate => [value = candidateInTest])					
+					emit(new AskForCandidate => [value = candidateInTest])				
 					info("Waiting for other agents to answer ... ")			
 				}			
 			}
@@ -185,8 +188,6 @@ agent CellAgent {
 			ctxId = colCtxId.id
 			^space = colCtxId.^space
 		}
-
-		info("Answer received from "+type+" for " + occurrence.value + " : " + occurrence.answer)
 		
 		answersReceivedLock.lock
 		var nbAnswers = answersReceived.get(ctxId)
@@ -214,22 +215,29 @@ agent CellAgent {
 			if (solutionFound) {
 				emitSolution(occurrence.value)
 			} else {
-				var searchForCandidateIsOver = true
-				answersReceivedLock.lock
-				for (entry : answersReceived.entrySet) {
-					var nbAnswersReceived = entry.value
-					var participants = spaces.get(entry.key).participants.size - 2
-					if (participants != nbAnswersReceived) {
-						info(nbAnswersReceived+" / " + participants +" for candidate : "+candidateInTest +" from " + entry.key)
-						searchForCandidateIsOver = false
+				var nb = answersReceived.get(ctxId)
+				var p = ^space.participants.size - 2
+				
+				if (nb == p) {
+					info("Search for "+candidateInTest+" in "+type+" is over")
+					switch(type){
+						case "Bloc": {
+							colCtxId.^space.emit(new AskForCandidate => [value = candidateInTest])
+							}							
+						case "Colonne": {
+							rowCtxId.^space.emit(new AskForCandidate => [value = candidateInTest]) 						
+							}
+						case "Ligne": {
+							info("Passe au candidat suivant")						
+							if (nextCandidateToTest !== null){
+								waitingAnswers = true									
+								emit(new AskForCandidate => [value = candidateInTest])								
+							} else {
+								info("Pas de candidats suivants")
+								relaseToken
+							}
+						}
 					}
-				}
-				answersReceivedLock.unlock					
-				if (searchForCandidateIsOver) {
-					// Pas de solution trouvée et toutes les réponses sont arrivées donc on remet les compteurs à 0
-					clearAnswers
-					info("La recherche de candidats est terminée")
-					relaseToken
 				}
 			}
 		}	
@@ -267,40 +275,38 @@ agent CellAgent {
 		]
 		candidatesLock.unlock
 		sendAnswerLock.lock
-			if (occurrence.isInDefaultSpace) {
-				emit(answerEvent, Scopes::addresses(occurrence.source))
-			} else if (occurrence.isInSpace(rowCtxId.^space)) {
-				rowCtxId.^space.emit(answerEvent, Scopes::addresses(occurrence.source))
-			} else if (occurrence.isInSpace(colCtxId.^space)) {
-				colCtxId.^space.emit(answerEvent, Scopes::addresses(occurrence.source))
-			}
+		if (occurrence.isInDefaultSpace) {
+			emit(answerEvent, Scopes::addresses(occurrence.source))
+		} else if (occurrence.isInSpace(rowCtxId.^space)) {
+			rowCtxId.^space.emit(answerEvent, Scopes::addresses(occurrence.source))
+		} else if (occurrence.isInSpace(colCtxId.^space)) {
+			colCtxId.^space.emit(answerEvent, Scopes::addresses(occurrence.source))
+		}
 		sendAnswerLock.unlock
 	}
+	
 	/** 
 	 * Relâche le token et se met en attente
 	 */
 	def relaseToken {
 		emit(new TokenReleased)
-		info("Token relâché")
 	}
 	/** 
 	 * Calcul la différence entre les candidats potentiels et les candidats qui ont été sujets d'un AskForCandidate
 	 */
-	def nextCandidateToTest {
+	def nextCandidateToTest : Integer{
 		candidatesAskedLock.lock
-		var found = false
 		for (candidate : candidates) {
 			if (!candidatesAsked.contains(candidate)) {
 				candidatesAsked.add(candidate)
 				this.candidateInTest = candidate
-				found = true
+				candidatesAskedLock.unlock
+				clearAnswers
+				return candidate
 			}
 		}
-//		if(!found){
-//			candidatesAsked = new ArrayList<Integer>
-//		}
-		clearAnswers
 		candidatesAskedLock.unlock
+		return null
 	}
 	
 	def clearAnswers {
@@ -328,8 +334,17 @@ agent CellAgent {
 
 	def emitToAllHolons(e : Event) {
 		emit(e)		
-		rowCtxId.^space.emit(e)
-		colCtxId.^space.emit(e)
+		rowCtxId.^space.emit(e)		
+		colCtxId.^space.emit(e)	
+	}
+	
+	def searchOtherHolon {
+		for (e : answersReceived.entrySet) {
+			if(e.value != 0){
+				spaces.get(e.key).emit(new AskForCandidate => [value = candidateInTest])
+				break
+			}
+		}
 	}
 
 }

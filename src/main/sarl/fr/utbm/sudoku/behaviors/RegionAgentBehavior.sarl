@@ -32,7 +32,6 @@ behavior RegionAgentBehavior {
 	 * Détermine l'agent qui a eu le token le moins de fois jusqu'ici
 	 */
 	def determineAgentToReceiveToken : UUID {
-		info("Valeurs : " + tokens.values)
 		var min = Collections.min(tokens.values)
 		for (entry : tokens.entrySet) {
 			if (entry.value == min) {
