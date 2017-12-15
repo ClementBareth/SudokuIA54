@@ -331,4 +331,5 @@ agent CellAgent {
 		rowCtxId.^space.emit(e)
 		colCtxId.^space.emit(e)
 	}
+
 }

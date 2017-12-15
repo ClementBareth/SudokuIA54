@@ -4,10 +4,12 @@
 package fr.utbm.sudoku.behaviors
 
 import fr.utbm.sudoku.events.ReadyToResolve
+import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
 import io.sarl.core.Behaviors
 import io.sarl.core.InnerContextAccess
+import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.util.Scopes
 import java.util.Collections
@@ -20,7 +22,7 @@ import java.util.UUID
  */
 behavior RegionAgentBehavior {
 	
-	uses Behaviors, InnerContextAccess, Logging
+	uses Behaviors, InnerContextAccess, Logging, Lifecycle
 
 	var tokens = new HashMap<UUID, Integer>
 	
@@ -30,6 +32,7 @@ behavior RegionAgentBehavior {
 	 * Détermine l'agent qui a eu le token le moins de fois jusqu'ici
 	 */
 	def determineAgentToReceiveToken : UUID {
+		info("Valeurs : " + tokens.values)
 		var min = Collections.min(tokens.values)
 		for (entry : tokens.entrySet) {
 			if (entry.value == min) {
@@ -54,9 +57,11 @@ behavior RegionAgentBehavior {
 	 */ 
 	on TokenReleased{
 		var nb = tokens.get(occurrence.source.UUID)
-		nb ++
-		tokens.put(occurrence.source.UUID, nb)
-		sendToken(determineAgentToReceiveToken)
+		if(nb !== null){
+			nb ++
+			tokens.put(occurrence.source.UUID, nb)
+		}
+		if(tokens.size > 0) sendToken(determineAgentToReceiveToken)
 	}
 	
 	/**
@@ -68,5 +73,9 @@ behavior RegionAgentBehavior {
 			tokens.put(occurrence.source.UUID, 1);
 			sendToken(occurrence.source.UUID)
 		}
+	}
+	
+	on SolutionFound{
+		tokens.remove(occurrence.source.UUID)
 	}
 }
