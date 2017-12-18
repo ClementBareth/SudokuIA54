@@ -118,4 +118,6 @@ event AnswerForCandidate {
 	var answer : boolean
 	var value : Integer
 	var type : RegionTypeEnum
+	var x : Integer
+	var y : Integer
 }

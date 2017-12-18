@@ -23,6 +23,7 @@ import javafx.geometry.VPos
 import javafx.scene.control.Button
 import javafx.scene.control.Label
 import javafx.scene.layout.GridPane
+import javafx.scene.paint.Color
 import javafx.scene.text.Text
 
 /** 
@@ -62,10 +63,10 @@ class GridController implements Initializable, EventListener {
 				var label : Label
 				if (sudoku.getValue(i, j) !== null && sudoku.getValue(i, j) !== 0) {
 					label = new Label("" + sudoku.getValue(i, j))
-					
+					label.textFill = Color.GREEN
 				}else{
 					label = new Label
-				}
+				}			
 				label.alignment = Pos.CENTER
 				GridPane.setConstraints(label, i, j)
 				GridPane.setHalignment(label, HPos.CENTER)

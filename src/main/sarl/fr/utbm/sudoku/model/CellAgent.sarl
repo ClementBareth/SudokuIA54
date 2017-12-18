@@ -19,9 +19,7 @@ import io.sarl.core.ContextJoined
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
-import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
-import io.sarl.core.Schedules
 import io.sarl.lang.core.Event
 import io.sarl.lang.core.EventSpace
 import io.sarl.util.Scopes
@@ -29,9 +27,7 @@ import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
 import java.util.UUID
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.ReentrantLock
-
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
@@ -50,14 +46,17 @@ agent CellAgent {
 	var valuesLock = new ReentrantLock
 	var waitingAnswers = false
 	var resolving = true
-	/**
+	/** 
 	 * Clef : ID du holon
 	 * Valeur : nombres de réponses reçues de ce holon
 	 */
-	var answersReceived = new HashMap<UUID, Integer>
-	var answersFalseReceived = new HashMap<UUID, Integer>
-	var spaces = new HashMap<UUID, EventSpace>
+	var answersReceived = new HashMap<RegionTypeEnum, Integer>
+	var answersFalseReceived = new HashMap<RegionTypeEnum, Integer>
+	var spaces = new HashMap<RegionTypeEnum, EventSpace>
+	
 	var candidateInTest : Integer
+	var candidateInTestLock = new ReentrantLock
+	
 	var nbValuesReceivedLock = new ReentrantLock
 	var answersReceivedLock = new ReentrantLock
 	var answersFalseReceivedLock = new ReentrantLock
@@ -67,6 +66,10 @@ agent CellAgent {
 	var candidatesAskedLock = new ReentrantLock
 	var candidatesAsked = new ArrayList<Integer>
 	val sendAnswerLock = new ReentrantLock
+
+	val l1 = new ReentrantLock
+
+	val emitLock = new ReentrantLock
 
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -78,20 +81,20 @@ agent CellAgent {
 			join(rowCtxId.contextId, rowCtxId.^space.spaceID.ID)
 			join(colCtxId.contextId, colCtxId.^space.spaceID.ID)
 		}
-		answersReceived.put(defaultContext.ID, 0)
-		answersReceived.put(rowCtxId.id, 0)
-		answersReceived.put(colCtxId.id, 0)
+		answersReceived.put(RegionTypeEnum.BLOC, 0)
+		answersReceived.put(RegionTypeEnum.COLONNE, 0)
+		answersReceived.put(RegionTypeEnum.LIGNE, 0)
 
-		answersFalseReceived.put(defaultContext.ID, 0)
-		answersFalseReceived.put(rowCtxId.id, 0)
-		answersFalseReceived.put(colCtxId.id, 0)
+		answersFalseReceived.put(RegionTypeEnum.BLOC, 0)
+		answersFalseReceived.put(RegionTypeEnum.LIGNE, 0)
+		answersFalseReceived.put(RegionTypeEnum.COLONNE, 0)
 
-		spaces.put(defaultContext.ID, defaultSpace)
-		spaces.put(rowCtxId.id, rowCtxId.^space)
-		spaces.put(colCtxId.id, colCtxId.^space)
+		spaces.put(RegionTypeEnum.BLOC, defaultSpace)
+		spaces.put(RegionTypeEnum.LIGNE, rowCtxId.^space)
+		spaces.put(RegionTypeEnum.COLONNE, colCtxId.^space)
 
 		setSkill(new SudokuMathsBaseSkill(values), SudokuMaths)
-		wake (new SendMessages)
+		wake(new SendMessages)
 	}
 
 	on ContextJoined {
@@ -112,7 +115,7 @@ agent CellAgent {
 	}
 
 	on TokenReceived {
-		resolving = true
+		// resolving = true
 		wake(new Resolve)
 	}
 
@@ -153,15 +156,16 @@ agent CellAgent {
 				var c = candidate
 				// S'il reste un seul candidat, on émet une solution puis on se suicide
 				emitSolution(c)
-			} 
-			else if (hasAtLeasteOneCandidate && waitingAnswers==false) {
+			} else if (hasAtLeasteOneCandidate) {
 				// Sinon s'il y a plus d'un candidat on va essayer de trouver ceux pour lesquel aucune autre solution n'est possible
 				nextCandidateToTest
 				if (candidateInTest !== null) {
-					waitingAnswers = true									
-					emit(new AskForCandidate => [value = candidateInTest])				
-					info("Waiting for other agents to answer ... ")			
-				}			
+					// waitingAnswers = true
+					emit(new AskForCandidate => [
+						value = candidateInTest;
+						type = RegionTypeEnum.BLOC
+					])
+				}
 			}
 		}
 	}
@@ -170,77 +174,76 @@ agent CellAgent {
 	 * Si aucun agent d'un des holons partagés ne peut recevoir le candidat, alors on a une solution
 	 */
 	on AnswerForCandidate {
-		var ctxId : UUID
-		var ^space : EventSpace
+
+//		info("Answer received from ("+occurrence.x+","+occurrence.y+" : "+occurrence.value+") in "+occurrence.type)
+
 		var solutionFound = false
-		var type : String
+		var type = occurrence.type
+		var ^space = spaces.get(type)
 
-		if (occurrence.isInDefaultSpace) {
-			type = "Bloc"
-			ctxId = defaultContext.ID
-			^space = defaultSpace
-		} else if (occurrence.isInSpace(rowCtxId.^space)) {
-			type = "Ligne"
-			ctxId = rowCtxId.id
-			^space = rowCtxId.^space
-		} else if (occurrence.isInSpace(colCtxId.^space)) {
-			type = "Colonne"
-			ctxId = colCtxId.id
-			^space = colCtxId.^space
-		}
-		
 		answersReceivedLock.lock
-		var nbAnswers = answersReceived.get(ctxId)
+		var nbAnswers = answersReceived.get(type)
 		nbAnswers++
-		answersReceived.put(ctxId, nbAnswers);
+		answersReceived.put(type, nbAnswers);
 		answersReceivedLock.unlock
-
-		var isResolving = true;
-
-		resolvingLock.lock
-		isResolving = resolving
-		resolvingLock.unlock
-
-		if (isResolving) {
-			if (occurrence.answer == false) {
-				answersFalseReceivedLock.lock
-				var nbAnswersFalse = answersFalseReceived.get(ctxId)		
-				nbAnswersFalse++
-				answersFalseReceived.put(ctxId, nbAnswersFalse);
-				answersFalseReceivedLock.unlock
-				if (nbAnswersFalse == ^space.participants.size - 2) {
-					solutionFound = true
-				}			
+		
+		if (occurrence.answer == false) {
+//			 info(type +" : "+occurrence.value + " can't go in (" + occurrence.x + "," + occurrence.y + ")")
+			answersFalseReceivedLock.lock
+			var nbAnswersFalse = answersFalseReceived.get(type)
+			nbAnswersFalse++
+			answersFalseReceived.put(type, nbAnswersFalse);
+			answersFalseReceivedLock.unlock
+			if (nbAnswersFalse == ^space.participants.size - 2) {
+				solutionFound = true
 			}
-			if (solutionFound) {
-				emitSolution(occurrence.value)
-			} else {
-				var nb = answersReceived.get(ctxId)
-				var p = ^space.participants.size - 2
-				
-				if (nb == p) {
-					info("Search for "+candidateInTest+" in "+type+" is over")
-					switch(type){
-						case "Bloc": {
-							colCtxId.^space.emit(new AskForCandidate => [value = candidateInTest])
-							}							
-						case "Colonne": {
-							rowCtxId.^space.emit(new AskForCandidate => [value = candidateInTest]) 						
-							}
-						case "Ligne": {
-							info("Passe au candidat suivant")						
-							if (nextCandidateToTest !== null){
-								waitingAnswers = true									
-								emit(new AskForCandidate => [value = candidateInTest])								
-							} else {
-								info("Pas de candidats suivants")
-								relaseToken
-							}
-						}
+		} else {
+//			 info(type + " : " + occurrence.value + " can go in (" + occurrence.x + "," + occurrence.y + ")")
+		}
+		if (solutionFound) {
+			// info("Nb participants in region : " + (^space.participants.size - 2))
+			info(type+" : Solution 2 : "+occurrence.value)
+			emitSolution(occurrence.value)
+		} else {
+			answersReceivedLock.lock
+			var nb = answersReceived.get(type)
+			var p = ^space.participants.size - 2			
+			info(type + " : answers = " + nb + " / " + p)
+			answersReceivedLock.unlock
+			
+			if (nb == p) {
+				// FIXME Plusieurs threads accèdent à cette section en même temps ou a peu de chose près
+				candidateInTestLock.lock
+				switch (type) {
+					case BLOC: {
+						colCtxId.^space.emit(new AskForCandidate => [
+							value = candidateInTest;
+							it.type = RegionTypeEnum.COLONNE
+						])
+					}
+					case COLONNE: {
+						info("Recherche de " + candidateInTest)
+						rowCtxId.^space.emit(new AskForCandidate => [
+							value = candidateInTest;
+							it.type = RegionTypeEnum.LIGNE
+						])
+					}
+					case LIGNE: {
+//						if (nextCandidateToTest !== null) {
+//							emit(new AskForCandidate => [
+//								value = candidateInTest;
+//								it.type = RegionTypeEnum.BLOC
+//							])
+//						} else {
+							relaseToken
+//						}
 					}
 				}
+				candidateInTestLock.unlock
 			}
-		}	
+			// if(nb > p){ info ("CA DEPASSE")}
+		}
+		
 	}
 	/** 
 	 * Une solution a été trouvée dans un holon de l'agent
@@ -250,14 +253,16 @@ agent CellAgent {
 		if (!values.contains(occurrence.solution)) {
 			values.add(occurrence.solution)
 			valuesLock.unlock
-			waitingAnswers = false
+			// waitingAnswers = false
 			clearAnswers
+
 			candidatesLock.lock
 			candidates = evaluateCandidates
-			if(candidates.size !== 0){
+			if (candidates.size !== 0) {
 				candidateInTest = candidates.get(0)
 			}
 			candidatesLock.unlock
+
 			wake(new Resolve)
 		} else {
 			valuesLock.unlock
@@ -269,22 +274,19 @@ agent CellAgent {
 	on AskForCandidate [!isFromMe] {
 		candidatesLock.lock
 		candidates = evaluateCandidates
+		// info(occurrence)
 		val answerEvent = new AnswerForCandidate => [
 			answer = candidates.contains(occurrence.value);
-			value = new Integer(occurrence.value)
+			value = new Integer(occurrence.value);
+			x = this.x;
+			y = this.y;
+			type = occurrence.type;
 		]
 		candidatesLock.unlock
 		sendAnswerLock.lock
-		if (occurrence.isInDefaultSpace) {
-			emit(answerEvent, Scopes::addresses(occurrence.source))
-		} else if (occurrence.isInSpace(rowCtxId.^space)) {
-			rowCtxId.^space.emit(answerEvent, Scopes::addresses(occurrence.source))
-		} else if (occurrence.isInSpace(colCtxId.^space)) {
-			colCtxId.^space.emit(answerEvent, Scopes::addresses(occurrence.source))
-		}
+		spaces.get(occurrence.type).emit(answerEvent, Scopes::addresses(occurrence.source))
 		sendAnswerLock.unlock
 	}
-	
 	/** 
 	 * Relâche le token et se met en attente
 	 */
@@ -294,7 +296,7 @@ agent CellAgent {
 	/** 
 	 * Calcul la différence entre les candidats potentiels et les candidats qui ont été sujets d'un AskForCandidate
 	 */
-	def nextCandidateToTest : Integer{
+	def nextCandidateToTest : Integer {
 		candidatesAskedLock.lock
 		for (candidate : candidates) {
 			if (!candidatesAsked.contains(candidate)) {
@@ -308,7 +310,7 @@ agent CellAgent {
 		candidatesAskedLock.unlock
 		return null
 	}
-	
+
 	def clearAnswers {
 		for (id : answersReceived.keySet) {
 			answersReceivedLock.lock
@@ -320,31 +322,33 @@ agent CellAgent {
 		}
 		waitingAnswers = false
 	}
-	
+
 	def emitSolution(v : Integer) {
-		info("Solution has been found : " + v)
+		// info("Solution has been found : " + v)
 		resolvingLock.lock
 		resolving = false
 		resolvingLock.unlock
 		values.add(v)
 		emitToAllHolons(new SolutionFound => [solution = v; x = this.x; y = this.y])
 		relaseToken
-//		killMe
+		// killMe
 	}
 
 	def emitToAllHolons(e : Event) {
-		emit(e)		
-		rowCtxId.^space.emit(e)		
-		colCtxId.^space.emit(e)	
+
+		emitLock.lock
+		emit(e)
+		emitLock.unlock
+
+		emitLock.lock
+		rowCtxId.^space.emit(e)
+		emitLock.unlock
+
+		emitLock.lock
+		colCtxId.^space.emit(e)
+		emitLock.unlock
+
 	}
 	
-	def searchOtherHolon {
-		for (e : answersReceived.entrySet) {
-			if(e.value != 0){
-				spaces.get(e.key).emit(new AskForCandidate => [value = candidateInTest])
-				break
-			}
-		}
-	}
 
 }
