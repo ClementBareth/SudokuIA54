@@ -45,13 +45,8 @@ agent CellAgent {
 	var nbValuesReceived = new Integer(0)
 	var values = new HashSet<Integer>
 	var valuesLock = new ReentrantLock
-	var waitingAnswers = false
 	var resolving = true
-	/** 
-	 * Clef : ID du holon
-	 * Valeur : nombres de réponses reçues de ce holon
-	 */
-	var answersReceived = new HashMap<RegionTypeEnum, Integer>
+
 	var answersFalseReceived = new HashMap<RegionTypeEnum, Integer>
 	var spaces = new HashMap<RegionTypeEnum, EventSpace>
 
@@ -78,9 +73,6 @@ agent CellAgent {
 			join(rowCtxId.contextId, rowCtxId.^space.spaceID.ID)
 			join(colCtxId.contextId, colCtxId.^space.spaceID.ID)
 		}
-		answersReceived.put(RegionTypeEnum.BLOC, 0)
-		answersReceived.put(RegionTypeEnum.COLONNE, 0)
-		answersReceived.put(RegionTypeEnum.LIGNE, 0)
 
 		answersFalseReceived.put(RegionTypeEnum.BLOC, 0)
 		answersFalseReceived.put(RegionTypeEnum.LIGNE, 0)
@@ -89,7 +81,11 @@ agent CellAgent {
 		spaces.put(RegionTypeEnum.BLOC, defaultSpace)
 		spaces.put(RegionTypeEnum.LIGNE, rowCtxId.^space)
 		spaces.put(RegionTypeEnum.COLONNE, colCtxId.^space)
-
+		
+		agentWhoAnswered.put(RegionTypeEnum.BLOC, new HashSet)
+		agentWhoAnswered.put(RegionTypeEnum.LIGNE, new HashSet)
+		agentWhoAnswered.put(RegionTypeEnum.COLONNE, new HashSet)
+		
 		setSkill(new SudokuMathsBaseSkill(values), SudokuMaths)
 		wake(new SendMessages)
 	}
@@ -156,16 +152,18 @@ agent CellAgent {
 	 * L'agent reçoit une réponse à son AskForCandidate
 	 * Si aucun agent d'un des holons partagés ne peut recevoir le candidat, alors on a une solution
 	 */
-	on AnswerForCandidate [!occurrence.isFromMe] {
+	on AnswerForCandidate [
+		resolving &&
+		!isFromMe && 
+		!agentWhoAnswered.get(occurrence.type).contains(occurrence.source.UUID)
+	] {
 
 		var solutionFound = false
 		var type = occurrence.type
 		var ^space = spaces.get(type)
 
 		answersReceivedLock.lock
-		var nbAnswers = answersReceived.get(type)
-		nbAnswers++
-		answersReceived.put(type, nbAnswers);
+		agentWhoAnswered.get(occurrence.type).add(occurrence.source.UUID)
 		answersReceivedLock.unlock
 
 		if (occurrence.answer == false) {
@@ -182,12 +180,10 @@ agent CellAgent {
 			emitSolution(occurrence.value)
 		} else {
 			answersReceivedLock.lock
-			var nb = answersReceived.get(type)
+			var nb = agentWhoAnswered.get(type).size
 			var p = ^space.participants.size - 2
-			info(type + " : answers = " + nb + " / " + p)
 			answersReceivedLock.unlock
 			if (nb == p) {
-				// FIXME Plusieurs threads accèdent à cette section en même temps ou a peu de chose près
 				var nextType : RegionTypeEnum = null
 				candidateInTestLock.lock
 				switch (type) {
@@ -208,6 +204,9 @@ agent CellAgent {
 				}
 				candidateInTestLock.unlock
 			}
+			if(nb > p){
+				info("PB")
+			}
 		}
 
 	}
@@ -221,10 +220,15 @@ agent CellAgent {
 			valuesLock.unlock
 			clearAnswers
 			candidatesLock.lock
-			candidates = evaluateCandidates
-			if (candidates.size !== 0) {
-				candidateInTest = candidates.get(0)
+			if (candidates.contains(occurrence.solution)){
+				candidates.remove(occurrence.solution)
 			}
+			if (candidatesAsked.contains(occurrence.solution)) {
+				candidatesAsked.remove(occurrence.solution)
+			}
+//			if (candidates.size !== 0) {
+//				candidateInTest = candidates.get(0)
+//			}
 			candidatesLock.unlock
 			wake(new Resolve)
 		} else {
@@ -252,6 +256,8 @@ agent CellAgent {
 	 * Relâche le token et se met en attente
 	 */
 	def relaseToken {
+		clearAnswers
+		candidatesAsked = new ArrayList<Integer>
 		emit(new TokenReleased)
 	}
 	/** 
@@ -274,22 +280,19 @@ agent CellAgent {
 	}
 
 	def clearAnswers {
-		for (id : answersReceived.keySet) {
+		for (id : RegionTypeEnum.values) {
 			answersReceivedLock.lock
-			answersReceived.put(id, 0)
+			agentWhoAnswered.put(id,new HashSet)
 			answersReceivedLock.unlock
 			answersFalseReceivedLock.lock
 			answersFalseReceived.put(id, 0)
 			answersFalseReceivedLock.unlock
 		}
-		waitingAnswers = false
 	}
 
 	def emitSolution(v : Integer) {
 		// info("Solution has been found : " + v)
-		resolvingLock.lock
 		resolving = false
-		resolvingLock.unlock
 		values.add(v)
 		emitToAllHolons(new SolutionFound => [solution = v; x = this.x; y = this.y])
 		relaseToken
@@ -306,6 +309,20 @@ agent CellAgent {
 		var ^space = spaces.get(type)
 		e.source = ^space.getAddress(ID)
 		^space.emit(e)
+	}
+	
+	def searchSingleton {
+		var candidate : Integer = null
+		candidatesLock.lock
+		candidates = evaluateCandidates
+		if (candidates.size == 1) {
+			candidate = candidates.get(0)
+		}
+		candidatesLock.unlock
+		if (candidate !== null) {
+			var c = candidate
+			emitSolution(c)
+		}
 	}
 
 }
