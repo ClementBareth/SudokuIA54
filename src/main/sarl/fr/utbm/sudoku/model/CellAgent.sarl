@@ -46,6 +46,9 @@ agent CellAgent {
 	var values = new HashSet<Integer>
 	var valuesLock = new ReentrantLock
 	var resolving = true
+	var scanning = false
+	
+	var answers = new HashSet<AnswerForCandidate>
 
 	var answersFalseReceived = new HashMap<RegionTypeEnum, Integer>
 	var spaces = new HashMap<RegionTypeEnum, EventSpace>
@@ -140,8 +143,9 @@ agent CellAgent {
 			var c = candidate
 			// S'il reste un seul candidat, on émet une solution puis on se suicide
 			emitSolution(c)
-		} else if (hasAtLeasteOneCandidate) {
+		} else if (hasAtLeasteOneCandidate && !scanning) {
 			// Sinon s'il y a plus d'un candidat on va essayer de trouver ceux pour lesquel aucune autre solution n'est possible
+			scanning = true
 			nextCandidateToTest
 			if (candidateInTest !== null) {
 				emit(new AskForCandidate(candidateInTest, RegionTypeEnum.BLOC))
@@ -153,15 +157,16 @@ agent CellAgent {
 	 * Si aucun agent d'un des holons partagés ne peut recevoir le candidat, alors on a une solution
 	 */
 	on AnswerForCandidate [
-		resolving &&
+		 resolving &&
 		!isFromMe && 
-		!agentWhoAnswered.get(occurrence.type).contains(occurrence.source.UUID)
+		!agentWhoAnswered.get(occurrence.type).contains(occurrence.source.UUID)	
 	] {
 
 		var solutionFound = false
 		var type = occurrence.type
 		var ^space = spaces.get(type)
 
+		answers.add(occurrence)
 		answersReceivedLock.lock
 		agentWhoAnswered.get(occurrence.type).add(occurrence.source.UUID)
 		answersReceivedLock.unlock
@@ -194,6 +199,7 @@ agent CellAgent {
 					case LIGNE: {
 						nextType = RegionTypeEnum.BLOC
 						if (nextCandidateToTest === null) {
+							scanning = false
 							relaseToken
 						}
 					}
@@ -238,7 +244,11 @@ agent CellAgent {
 	/** 
 	 * L'agent reçoit une demande d'un autre agent pour s'avoir s'il peut acceuilir le candidat passé en paramètre
 	 */
-	on AskForCandidate [!isFromMe] {
+	on AskForCandidate [
+		!isFrom(spaces.get(RegionTypeEnum.BLOC).getAddress(ID)) &&
+		!isFrom(spaces.get(RegionTypeEnum.LIGNE).getAddress(ID)) &&
+		!isFrom(spaces.get(RegionTypeEnum.COLONNE).getAddress(ID))	
+	] {
 		candidatesLock.lock
 		candidates = evaluateCandidates
 		val answerEvent = new AnswerForCandidate => [
@@ -258,6 +268,7 @@ agent CellAgent {
 	def relaseToken {
 		clearAnswers
 		candidatesAsked = new ArrayList<Integer>
+		answers.clear
 		emit(new TokenReleased)
 	}
 	/** 
@@ -324,5 +335,7 @@ agent CellAgent {
 			emitSolution(c)
 		}
 	}
+	
+//	def determine
 
 }

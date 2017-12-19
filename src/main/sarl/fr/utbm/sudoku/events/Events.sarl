@@ -124,6 +124,7 @@ event AnswerForCandidate {
 	var answer : boolean
 	var value : Integer
 	var type : RegionTypeEnum
+	var id : UUID
 	var x : Integer
 	var y : Integer
 }
