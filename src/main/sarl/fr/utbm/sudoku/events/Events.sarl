@@ -110,6 +110,12 @@ event Values{
 event SendMessages
 
 event AskForCandidate{
+	
+	new (v : Integer, t : RegionTypeEnum){
+		value = v;
+		type = t;
+	}
+	
 	var value : Integer
 	var type : RegionTypeEnum
 }

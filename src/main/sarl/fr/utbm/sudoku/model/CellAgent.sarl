@@ -28,6 +28,7 @@ import java.util.HashMap
 import java.util.HashSet
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
+
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
@@ -53,10 +54,10 @@ agent CellAgent {
 	var answersReceived = new HashMap<RegionTypeEnum, Integer>
 	var answersFalseReceived = new HashMap<RegionTypeEnum, Integer>
 	var spaces = new HashMap<RegionTypeEnum, EventSpace>
-	
+
 	var candidateInTest : Integer
 	var candidateInTestLock = new ReentrantLock
-	
+
 	var nbValuesReceivedLock = new ReentrantLock
 	var answersReceivedLock = new ReentrantLock
 	var answersFalseReceivedLock = new ReentrantLock
@@ -65,11 +66,7 @@ agent CellAgent {
 	var candidates = new ArrayList<Integer>
 	var candidatesAskedLock = new ReentrantLock
 	var candidatesAsked = new ArrayList<Integer>
-	val sendAnswerLock = new ReentrantLock
-
-	val l1 = new ReentrantLock
-
-	val emitLock = new ReentrantLock
+	var agentWhoAnswered = new HashMap<RegionTypeEnum, HashSet<UUID>>
 
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -115,7 +112,6 @@ agent CellAgent {
 	}
 
 	on TokenReceived {
-		// resolving = true
 		wake(new Resolve)
 	}
 
@@ -133,39 +129,26 @@ agent CellAgent {
 	/** 
 	 * L'agent commence la résolution du sudoku
 	 */
-	on Resolve {
+	on Resolve [resolving] {
 		var hasAtLeasteOneCandidate = false
 		var candidate : Integer = null
-		var isResolving = true;
-
-		resolvingLock.lock
-		isResolving = resolving
-		resolvingLock.unlock
-
-		if (isResolving) {
-			candidatesLock.lock
-			candidates = evaluateCandidates
-			if (candidates.size == 1) {
-				candidate = candidates.get(0)
-			} else if (candidates.size > 1) {
-				hasAtLeasteOneCandidate = true
-			}
-			candidatesLock.unlock
-
-			if (candidate !== null) {
-				var c = candidate
-				// S'il reste un seul candidat, on émet une solution puis on se suicide
-				emitSolution(c)
-			} else if (hasAtLeasteOneCandidate) {
-				// Sinon s'il y a plus d'un candidat on va essayer de trouver ceux pour lesquel aucune autre solution n'est possible
-				nextCandidateToTest
-				if (candidateInTest !== null) {
-					// waitingAnswers = true
-					emit(new AskForCandidate => [
-						value = candidateInTest;
-						type = RegionTypeEnum.BLOC
-					])
-				}
+		candidatesLock.lock
+		candidates = evaluateCandidates
+		if (candidates.size == 1) {
+			candidate = candidates.get(0)
+		} else if (candidates.size > 1) {
+			hasAtLeasteOneCandidate = true
+		}
+		candidatesLock.unlock
+		if (candidate !== null) {
+			var c = candidate
+			// S'il reste un seul candidat, on émet une solution puis on se suicide
+			emitSolution(c)
+		} else if (hasAtLeasteOneCandidate) {
+			// Sinon s'il y a plus d'un candidat on va essayer de trouver ceux pour lesquel aucune autre solution n'est possible
+			nextCandidateToTest
+			if (candidateInTest !== null) {
+				emit(new AskForCandidate(candidateInTest, RegionTypeEnum.BLOC))
 			}
 		}
 	}
@@ -173,9 +156,7 @@ agent CellAgent {
 	 * L'agent reçoit une réponse à son AskForCandidate
 	 * Si aucun agent d'un des holons partagés ne peut recevoir le candidat, alors on a une solution
 	 */
-	on AnswerForCandidate {
-
-//		info("Answer received from ("+occurrence.x+","+occurrence.y+" : "+occurrence.value+") in "+occurrence.type)
+	on AnswerForCandidate [!occurrence.isFromMe] {
 
 		var solutionFound = false
 		var type = occurrence.type
@@ -186,9 +167,8 @@ agent CellAgent {
 		nbAnswers++
 		answersReceived.put(type, nbAnswers);
 		answersReceivedLock.unlock
-		
+
 		if (occurrence.answer == false) {
-//			 info(type +" : "+occurrence.value + " can't go in (" + occurrence.x + "," + occurrence.y + ")")
 			answersFalseReceivedLock.lock
 			var nbAnswersFalse = answersFalseReceived.get(type)
 			nbAnswersFalse++
@@ -197,53 +177,39 @@ agent CellAgent {
 			if (nbAnswersFalse == ^space.participants.size - 2) {
 				solutionFound = true
 			}
-		} else {
-//			 info(type + " : " + occurrence.value + " can go in (" + occurrence.x + "," + occurrence.y + ")")
 		}
 		if (solutionFound) {
-			// info("Nb participants in region : " + (^space.participants.size - 2))
-			info(type+" : Solution 2 : "+occurrence.value)
 			emitSolution(occurrence.value)
 		} else {
 			answersReceivedLock.lock
 			var nb = answersReceived.get(type)
-			var p = ^space.participants.size - 2			
+			var p = ^space.participants.size - 2
 			info(type + " : answers = " + nb + " / " + p)
 			answersReceivedLock.unlock
-			
 			if (nb == p) {
 				// FIXME Plusieurs threads accèdent à cette section en même temps ou a peu de chose près
+				var nextType : RegionTypeEnum = null
 				candidateInTestLock.lock
 				switch (type) {
-					case BLOC: {
-						colCtxId.^space.emit(new AskForCandidate => [
-							value = candidateInTest;
-							it.type = RegionTypeEnum.COLONNE
-						])
-					}
-					case COLONNE: {
-						info("Recherche de " + candidateInTest)
-						rowCtxId.^space.emit(new AskForCandidate => [
-							value = candidateInTest;
-							it.type = RegionTypeEnum.LIGNE
-						])
-					}
+					case BLOC:
+						nextType = RegionTypeEnum.COLONNE
+					case COLONNE:
+						nextType = RegionTypeEnum.LIGNE
 					case LIGNE: {
-//						if (nextCandidateToTest !== null) {
-//							emit(new AskForCandidate => [
-//								value = candidateInTest;
-//								it.type = RegionTypeEnum.BLOC
-//							])
-//						} else {
+						nextType = RegionTypeEnum.BLOC
+						if (nextCandidateToTest === null) {
 							relaseToken
-//						}
+						}
 					}
+				}
+				var e = new AskForCandidate(candidateInTest, nextType)
+				if (candidateInTest !== null) {
+					e.emitToHolon(nextType)
 				}
 				candidateInTestLock.unlock
 			}
-			// if(nb > p){ info ("CA DEPASSE")}
 		}
-		
+
 	}
 	/** 
 	 * Une solution a été trouvée dans un holon de l'agent
@@ -253,16 +219,13 @@ agent CellAgent {
 		if (!values.contains(occurrence.solution)) {
 			values.add(occurrence.solution)
 			valuesLock.unlock
-			// waitingAnswers = false
 			clearAnswers
-
 			candidatesLock.lock
 			candidates = evaluateCandidates
 			if (candidates.size !== 0) {
 				candidateInTest = candidates.get(0)
 			}
 			candidatesLock.unlock
-
 			wake(new Resolve)
 		} else {
 			valuesLock.unlock
@@ -274,7 +237,6 @@ agent CellAgent {
 	on AskForCandidate [!isFromMe] {
 		candidatesLock.lock
 		candidates = evaluateCandidates
-		// info(occurrence)
 		val answerEvent = new AnswerForCandidate => [
 			answer = candidates.contains(occurrence.value);
 			value = new Integer(occurrence.value);
@@ -283,9 +245,8 @@ agent CellAgent {
 			type = occurrence.type;
 		]
 		candidatesLock.unlock
-		sendAnswerLock.lock
+		answerEvent.source = spaces.get(occurrence.type).getAddress(ID)
 		spaces.get(occurrence.type).emit(answerEvent, Scopes::addresses(occurrence.source))
-		sendAnswerLock.unlock
 	}
 	/** 
 	 * Relâche le token et se met en attente
@@ -308,6 +269,7 @@ agent CellAgent {
 			}
 		}
 		candidatesAskedLock.unlock
+		this.candidateInTest = null
 		return null
 	}
 
@@ -335,20 +297,15 @@ agent CellAgent {
 	}
 
 	def emitToAllHolons(e : Event) {
-
-		emitLock.lock
-		emit(e)
-		emitLock.unlock
-
-		emitLock.lock
-		rowCtxId.^space.emit(e)
-		emitLock.unlock
-
-		emitLock.lock
-		colCtxId.^space.emit(e)
-		emitLock.unlock
-
+		e.emitToHolon(RegionTypeEnum.BLOC)
+		e.emitToHolon(RegionTypeEnum.LIGNE)
+		e.emitToHolon(RegionTypeEnum.COLONNE)
 	}
-	
+
+	def emitToHolon(e : Event, type : RegionTypeEnum) {
+		var ^space = spaces.get(type)
+		e.source = ^space.getAddress(ID)
+		^space.emit(e)
+	}
 
 }
