@@ -24,9 +24,6 @@ import javafx.scene.layout.VBox
 class GuiController implements Initializable {
 
 	var app : SudokuApplication
-
-	@FXML
-	var demo : Button
 	
 	@FXML
 	var saisir : Button

@@ -58,6 +58,12 @@ event SolutionFound{
 	var y : Integer
 }
 
+event NewSolutionFound {
+	var solution : Integer
+	var x : Integer
+	var y : Integer
+}
+
 
 event RowAndColSpawned
 

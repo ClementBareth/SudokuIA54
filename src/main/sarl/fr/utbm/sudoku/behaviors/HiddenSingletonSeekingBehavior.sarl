@@ -1,0 +1,186 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.behaviors
+
+import fr.utbm.sudoku.capacities.SudokuBaseCommunication
+import fr.utbm.sudoku.capacities.SudokuCommunication
+import fr.utbm.sudoku.events.AnswerForCandidate
+import fr.utbm.sudoku.events.AskForCandidate
+import fr.utbm.sudoku.events.NewSolutionFound
+import fr.utbm.sudoku.events.Resolve
+import fr.utbm.sudoku.events.TokenReleased
+import fr.utbm.sudoku.model.RegionTypeEnum
+import io.sarl.core.DefaultContextInteractions
+import io.sarl.core.ExternalContextAccess
+import io.sarl.core.Initialize
+import io.sarl.lang.core.Agent
+import io.sarl.util.Scopes
+import java.util.ArrayList
+import java.util.HashMap
+import java.util.HashSet
+import java.util.List
+import java.util.UUID
+import java.util.concurrent.locks.ReentrantLock
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+behavior HiddenSingletonSeekingBehavior {
+
+	uses DefaultContextInteractions, SudokuCommunication, ExternalContextAccess
+
+	var resolving = true
+	var scanning = false
+	var candidates : List<Integer>
+	var candidateInTest : Integer
+	var candidatesAsked = new ArrayList<Integer>
+	var agentWhoAnswered = new HashMap<RegionTypeEnum, HashSet<UUID>>
+	var answers = new HashSet<AnswerForCandidate>
+	var answersFalseReceived = new HashMap<RegionTypeEnum, Integer>
+	var sudokuCommunicationSkill : SudokuBaseCommunication
+	
+	var candidateInTestLock = new ReentrantLock
+	var answersReceivedLock = new ReentrantLock
+	var answersFalseReceivedLock = new ReentrantLock
+	var candidatesAskedLock = new ReentrantLock
+
+	new (a : Agent, c : List<Integer>, s : SudokuBaseCommunication) {
+		super(a)
+		this.candidates = c
+		this.sudokuCommunicationSkill = s
+	}
+	
+	on Initialize{
+		setSkill(sudokuCommunicationSkill, SudokuCommunication)
+		agentWhoAnswered.put(RegionTypeEnum.BLOC, new HashSet)
+		agentWhoAnswered.put(RegionTypeEnum.LIGNE, new HashSet)
+		agentWhoAnswered.put(RegionTypeEnum.COLONNE, new HashSet)
+		answersFalseReceived.put(RegionTypeEnum.BLOC, 0)
+		answersFalseReceived.put(RegionTypeEnum.LIGNE, 0)
+		answersFalseReceived.put(RegionTypeEnum.COLONNE, 0)
+	}
+
+	on Resolve [resolving && candidates.size > 1 && !scanning] {
+		scanning = true
+		nextCandidateToTest
+		if (candidateInTest !== null) {
+			emit(new AskForCandidate(candidateInTest, RegionTypeEnum.BLOC))
+		}
+	}
+	
+	on NewSolutionFound [!isFromMe] {
+		clearAnswers
+		if (candidatesAsked.contains(occurrence.solution)) {
+			candidatesAsked.remove(occurrence.solution)
+		}
+	}
+	
+	/** 
+	 * L'agent reçoit une réponse à son AskForCandidate
+	 * Si aucun agent d'un des holons partagés ne peut recevoir le candidat, alors on a une solution
+	 */
+	on AnswerForCandidate [resolving && !isFromMe &&
+		!agentWhoAnswered.get(occurrence.type).contains(occurrence.source.UUID)] {
+
+		var solutionFound = false
+		var type = occurrence.type
+		var ^space = spaces.get(type)
+
+		answers.add(occurrence)
+		answersReceivedLock.lock
+		agentWhoAnswered.get(occurrence.type).add(occurrence.source.UUID)
+		answersReceivedLock.unlock
+
+		if (occurrence.answer == false) {
+			answersFalseReceivedLock.lock
+			var nbAnswersFalse = answersFalseReceived.get(type)
+			nbAnswersFalse++
+			answersFalseReceived.put(type, nbAnswersFalse);
+			answersFalseReceivedLock.unlock
+			if (nbAnswersFalse == ^space.participants.size - 2) {
+				solutionFound = true
+			}
+		}
+		if (solutionFound) {
+			emitSolution(occurrence.value)
+		} else {
+			answersReceivedLock.lock
+			var nb = agentWhoAnswered.get(type).size
+			var p = ^space.participants.size - 2
+			answersReceivedLock.unlock
+			if (nb == p) {
+				var nextType : RegionTypeEnum = null
+				candidateInTestLock.lock
+				switch (type) {
+					case BLOC:
+						nextType = RegionTypeEnum.COLONNE
+					case COLONNE:
+						nextType = RegionTypeEnum.LIGNE
+					case LIGNE: {
+						nextType = RegionTypeEnum.BLOC
+						if (nextCandidateToTest === null) {
+							scanning = false
+							emit(new TokenReleased)
+							// relaseToken
+						}
+					}
+				}
+				var e = new AskForCandidate(candidateInTest, nextType)
+				if (candidateInTest !== null) {
+					e.emitToHolon(nextType)
+				}
+				candidateInTestLock.unlock
+			}
+		}
+	}
+
+	/** 
+	 * L'agent reçoit une demande d'un autre agent pour s'avoir s'il peut acceuilir le candidat passé en paramètre
+	 */
+	on AskForCandidate [!isFrom(spaces.get(RegionTypeEnum.BLOC).getAddress(ID)) &&
+		!isFrom(spaces.get(RegionTypeEnum.LIGNE).getAddress(ID)) &&
+		!isFrom(spaces.get(RegionTypeEnum.COLONNE).getAddress(ID))] {
+			
+		val answerEvent = new AnswerForCandidate => [
+			answer = candidates.contains(occurrence.value);
+			value = new Integer(occurrence.value);
+			x = getX;
+			y = getY;
+			type = occurrence.type;
+		]
+		answerEvent.source = spaces.get(occurrence.type).getAddress(ID)
+		spaces.get(occurrence.type).emit(answerEvent, Scopes::addresses(occurrence.source))
+	}
+	/** 
+	 * Calcul la différence entre les candidats potentiels et les candidats qui ont été sujets d'un AskForCandidate
+	 */
+	def nextCandidateToTest : Integer {
+		candidatesAskedLock.lock
+		for (candidate : candidates) {
+			if (!candidatesAsked.contains(candidate)) {
+				candidatesAsked.add(candidate)
+				this.candidateInTest = candidate
+				candidatesAskedLock.unlock
+				clearAnswers
+				return candidate
+			}
+		}
+		candidatesAskedLock.unlock
+		this.candidateInTest = null
+		return null
+	}
+
+	def clearAnswers {
+		for (id : RegionTypeEnum.values) {
+			answersReceivedLock.lock
+			agentWhoAnswered.put(id, new HashSet)
+			answersReceivedLock.unlock
+			answersFalseReceivedLock.lock
+			answersFalseReceived.put(id, 0)
+			answersFalseReceivedLock.unlock
+		}
+	}
+
+}

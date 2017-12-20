@@ -9,8 +9,6 @@ import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
 import io.sarl.core.Behaviors
 import io.sarl.core.InnerContextAccess
-import io.sarl.core.Lifecycle
-import io.sarl.core.Logging
 import io.sarl.util.Scopes
 import java.util.Collections
 import java.util.HashMap
@@ -22,7 +20,7 @@ import java.util.UUID
  */
 behavior RegionAgentBehavior {
 	
-	uses Behaviors, InnerContextAccess, Logging, Lifecycle
+	uses Behaviors, InnerContextAccess
 
 	var tokens = new HashMap<UUID, Integer>
 	

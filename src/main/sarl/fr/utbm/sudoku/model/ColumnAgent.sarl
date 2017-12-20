@@ -4,6 +4,8 @@
 package fr.utbm.sudoku.model
 
 import fr.utbm.sudoku.behaviors.RegionAgentBehavior
+import fr.utbm.sudoku.capacities.SudokuMaths
+import fr.utbm.sudoku.capacities.SudokuMathsBaseSkill
 import fr.utbm.sudoku.events.ColAgentSpawned
 import fr.utbm.sudoku.events.ColInitialized
 import fr.utbm.sudoku.events.PositionY

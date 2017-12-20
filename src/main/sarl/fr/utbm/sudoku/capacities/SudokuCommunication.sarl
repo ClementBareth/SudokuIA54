@@ -1,0 +1,65 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.capacities
+
+import fr.utbm.sudoku.events.SolutionFound
+import fr.utbm.sudoku.events.TokenReleased
+import fr.utbm.sudoku.model.RegionTypeEnum
+import io.sarl.core.Behaviors
+import io.sarl.core.DefaultContextInteractions
+import io.sarl.core.ExternalContextAccess
+import io.sarl.lang.core.Event
+import io.sarl.lang.core.EventSpace
+import java.util.Map
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+capacity SudokuCommunication {
+	
+	def emitToAllHolons(e:Event)
+	def emitToHolon(e:Event,type:RegionTypeEnum)
+	def emitSolution(v : Integer)
+	def getX : Integer
+	def getY : Integer
+	def getSpaces : Map<RegionTypeEnum, EventSpace>
+}
+
+skill SudokuBaseCommunication implements SudokuCommunication {
+	uses DefaultContextInteractions, ExternalContextAccess, Behaviors
+	
+	var spaces : Map<RegionTypeEnum,EventSpace>
+	var x : Integer
+	var y: Integer
+	
+	def emitSolution(v : Integer) {
+		wake(new SolutionFound => [solution = v; x = this.x; y = this.y])
+		emit(new TokenReleased)
+	}
+
+	def emitToAllHolons(e : Event) {
+		e.emitToHolon(RegionTypeEnum.BLOC)
+		e.emitToHolon(RegionTypeEnum.LIGNE)
+		e.emitToHolon(RegionTypeEnum.COLONNE)
+	}
+
+	def emitToHolon(e : Event, type : RegionTypeEnum) {
+		var ^space = spaces.get(type)
+		e.source = ^space.getAddress(ID)
+		^space.emit(e)
+	}
+	
+	def getX : Integer{
+		return x
+	}
+	
+	def getY : Integer{
+		return y
+	}
+	
+	def getSpaces : Map<RegionTypeEnum,EventSpace>{
+		return spaces
+	}
+}

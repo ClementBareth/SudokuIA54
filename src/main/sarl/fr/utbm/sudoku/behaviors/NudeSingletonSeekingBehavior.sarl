@@ -1,0 +1,52 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.behaviors
+
+import fr.utbm.sudoku.capacities.SudokuBaseCommunication
+import fr.utbm.sudoku.capacities.SudokuCommunication
+import fr.utbm.sudoku.events.NewSolutionFound
+import fr.utbm.sudoku.events.Resolve
+import fr.utbm.sudoku.events.TokenReleased
+import io.sarl.core.DefaultContextInteractions
+import io.sarl.core.Initialize
+import io.sarl.lang.core.Agent
+import java.util.List
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+behavior NudeSingletonSeekingBehavior {
+	uses SudokuCommunication, DefaultContextInteractions
+	
+	var resolving = true
+	var candidates : List<Integer>
+	var communicationSkill : SudokuBaseCommunication
+	
+	new (a : Agent, c : List<Integer>, s : SudokuBaseCommunication){
+		super(a)
+		this.candidates = c
+		this.communicationSkill = s
+	}
+
+	on Resolve [resolving]{
+		seekSolution
+	}
+	
+	on NewSolutionFound[resolving]{
+		seekSolution
+	}
+
+	on Initialize {
+		setSkill(communicationSkill, SudokuCommunication)
+	}
+	
+	def seekSolution() {
+		if (resolving && candidates.size == 1) {
+			emitSolution(candidates.get(0))
+			resolving = false
+			emit(new TokenReleased)
+		}
+	}
+}
