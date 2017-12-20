@@ -64,6 +64,7 @@ event NewSolutionFound {
 	var y : Integer
 }
 
+event SeekNudeSingletons
 
 event RowAndColSpawned
 

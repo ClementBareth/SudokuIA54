@@ -5,10 +5,9 @@ package fr.utbm.sudoku.behaviors
 
 import fr.utbm.sudoku.capacities.SudokuBaseCommunication
 import fr.utbm.sudoku.capacities.SudokuCommunication
-import fr.utbm.sudoku.events.NewSolutionFound
 import fr.utbm.sudoku.events.Resolve
-import fr.utbm.sudoku.events.TokenReleased
-import io.sarl.core.DefaultContextInteractions
+import fr.utbm.sudoku.events.SeekNudeSingletons
+import fr.utbm.sudoku.events.SolutionFound
 import io.sarl.core.Initialize
 import io.sarl.lang.core.Agent
 import java.util.List
@@ -18,7 +17,7 @@ import java.util.List
  * 
  */
 behavior NudeSingletonSeekingBehavior {
-	uses SudokuCommunication, DefaultContextInteractions
+	uses SudokuCommunication
 	
 	var resolving = true
 	var candidates : List<Integer>
@@ -33,8 +32,12 @@ behavior NudeSingletonSeekingBehavior {
 	on Resolve [resolving]{
 		seekSolution
 	}
+
+	on SolutionFound [resolving] {
+		seekSolution
+	}
 	
-	on NewSolutionFound[resolving]{
+	on SeekNudeSingletons [resolving]{
 		seekSolution
 	}
 
@@ -44,9 +47,10 @@ behavior NudeSingletonSeekingBehavior {
 	
 	def seekSolution() {
 		if (resolving && candidates.size == 1) {
-			emitSolution(candidates.get(0))
 			resolving = false
-			emit(new TokenReleased)
+			emitToAllHolons(new SolutionFound => [solution = candidates.get(0); x = getX; y = getY])
 		}
 	}
+	
+
 }

@@ -25,6 +25,7 @@ capacity SudokuCommunication {
 	def getX : Integer
 	def getY : Integer
 	def getSpaces : Map<RegionTypeEnum, EventSpace>
+	def isFromMeInOtherHolon(e:Event):boolean
 }
 
 skill SudokuBaseCommunication implements SudokuCommunication {
@@ -67,5 +68,13 @@ skill SudokuBaseCommunication implements SudokuCommunication {
 	
 	def getSpaces : Map<RegionTypeEnum,EventSpace>{
 		return spaces
+	}
+	
+	def isFromMeInOtherHolon(e : Event) : boolean {
+		return (
+			!e.isFrom(spaces.get(RegionTypeEnum.BLOC).getAddress(ID)) &&
+			!e.isFrom(spaces.get(RegionTypeEnum.LIGNE).getAddress(ID)) &&
+			!e.isFrom(spaces.get(RegionTypeEnum.COLONNE).getAddress(ID))	
+		)
 	}
 }

@@ -122,8 +122,9 @@ behavior HiddenSingletonSeekingBehavior {
 						nextType = RegionTypeEnum.BLOC
 						if (nextCandidateToTest === null) {
 							scanning = false
+							clearAnswers
 							emit(new TokenReleased)
-							// relaseToken
+							relaseToken
 						}
 					}
 				}
@@ -181,6 +182,13 @@ behavior HiddenSingletonSeekingBehavior {
 			answersFalseReceived.put(id, 0)
 			answersFalseReceivedLock.unlock
 		}
+	}
+
+	def relaseToken {
+		clearAnswers
+		candidatesAsked = new ArrayList<Integer>
+		answers.clear
+		emit(new TokenReleased)
 	}
 
 }

@@ -14,6 +14,7 @@ import fr.utbm.sudoku.events.PositionX
 import fr.utbm.sudoku.events.PositionY
 import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.Resolve
+import fr.utbm.sudoku.events.SeekNudeSingletons
 import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.Values
@@ -30,7 +31,6 @@ import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
 import java.util.concurrent.locks.ReentrantLock
-
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
@@ -47,9 +47,9 @@ agent CellAgent {
 	var candidates = new ArrayList<Integer>
 	var spaces = new HashMap<RegionTypeEnum, EventSpace>
 	var nudeSingletonBehavior : NudeSingletonSeekingBehavior
-	var hiddenSingletonBehavior : HiddenSingletonSeekingBehavior	
+	var hiddenSingletonBehavior : HiddenSingletonSeekingBehavior
 	var candidatesLock = new ReentrantLock
-	var nbValuesReceivedLock = new ReentrantLock	
+	var nbValuesReceivedLock = new ReentrantLock
 
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -65,12 +65,12 @@ agent CellAgent {
 		spaces.put(RegionTypeEnum.LIGNE, rowCtxId.^space)
 		spaces.put(RegionTypeEnum.COLONNE, colCtxId.^space)
 		setSkill(new SudokuMathsBaseSkill(values), SudokuMaths)
-		var commSkill = new SudokuBaseCommunication (x,y,spaces)
+		var commSkill = new SudokuBaseCommunication(x, y, spaces)
 		setSkill(commSkill, SudokuCommunication)
-		nudeSingletonBehavior = new NudeSingletonSeekingBehavior(this,candidates,commSkill)
-		hiddenSingletonBehavior = new HiddenSingletonSeekingBehavior(this,candidates,commSkill)
+		nudeSingletonBehavior = new NudeSingletonSeekingBehavior(this, candidates, commSkill)
+		hiddenSingletonBehavior = new HiddenSingletonSeekingBehavior(this, candidates, commSkill)
 		registerBehavior(nudeSingletonBehavior)
-		registerBehavior(hiddenSingletonBehavior)
+		// registerBehavior(hiddenSingletonBehavior)
 	}
 
 	on ContextJoined {
@@ -89,9 +89,6 @@ agent CellAgent {
 	}
 
 	on TokenReceived {
-		candidatesLock.lock
-		candidates = evaluateCandidates
-		candidatesLock.unlock
 		wake(new Resolve)
 	}
 
@@ -101,34 +98,31 @@ agent CellAgent {
 		nbValuesReceived++
 		if (nbValuesReceived == 3) {
 			nbValuesReceivedLock.unlock
+			candidatesLock.lock
+			candidates.addAll(evaluateCandidates)
+			candidatesLock.unlock
 			emit(new ReadyToResolve)
 		} else {
 			nbValuesReceivedLock.unlock
 		}
 	}
-	
 	/** 
 	 * Une solution a été trouvée dans un holon de l'agent
 	 */
 	on SolutionFound [
-		!occurrence.isFromMe && 
+		!isFromMe &&
 		!values.contains(occurrence.solution)
 	] {
-		values.add(occurrence.solution)		
+		values.add(occurrence.solution)
 		candidatesLock.lock
 		if (candidates.contains(occurrence.solution)) {
 			candidates.remove(occurrence.solution)
 		}
 		candidatesLock.unlock
-		wake(new NewSolutionFound)
 	}
-	
-	on SolutionFound[isFromMe]{
-		emitSolution(occurrence.solution)
-	}
-	
-	on Destroy{
+
+	on Destroy {
 		unregisterBehavior(nudeSingletonBehavior)
-		unregisterBehavior(hiddenSingletonBehavior)
+		// unregisterBehavior(hiddenSingletonBehavior)
 	}
 }
