@@ -9,6 +9,7 @@ import fr.utbm.sudoku.model.Sudoku
 import io.sarl.lang.core.EventSpace
 import java.util.List
 import java.util.UUID
+import fr.utbm.sudoku.model.Algorithms
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -108,6 +109,11 @@ event ReadyToResolve
 
 event Resolve{
 	var values : List<Integer>
+	var algos : List<Algorithms>
+}
+
+event Algos {
+	var algos : List<Algorithms>
 }
 
 event Values{

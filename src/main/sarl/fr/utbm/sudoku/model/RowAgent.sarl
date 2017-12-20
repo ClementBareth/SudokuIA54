@@ -13,7 +13,9 @@ import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Destroy
 import io.sarl.core.Initialize
 import io.sarl.core.InnerContextAccess
+import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
+import io.sarl.core.MemberLeft
 import java.util.HashMap
 import java.util.List
 import java.util.UUID
@@ -23,7 +25,7 @@ import java.util.UUID
  * 
  */
 agent RowAgent {
-	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors
+	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors, Lifecycle
 
 	var rowNum : Integer
 	var rowValues : List<Integer>
@@ -69,5 +71,9 @@ agent RowAgent {
 
 	on Resolve [!it.isFrom(ID)] {
 		wake(new Values => [values = rowValues])
+	}
+
+	on MemberLeft {
+		if(innerContext.defaultSpace.participants.size == 1) killMe
 	}
 }

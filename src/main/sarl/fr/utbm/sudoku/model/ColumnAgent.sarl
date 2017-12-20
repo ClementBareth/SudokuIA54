@@ -15,7 +15,9 @@ import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
 import io.sarl.core.InnerContextAccess
+import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
+import io.sarl.core.MemberLeft
 import java.util.HashMap
 import java.util.List
 import java.util.UUID
@@ -25,7 +27,7 @@ import java.util.UUID
  * 
  */
 agent ColumnAgent {
-	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors, SudokuMaths
+	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors, SudokuMaths, Lifecycle
 
 	var colNum : Integer
 	var colValues : List<Integer>
@@ -73,5 +75,9 @@ agent ColumnAgent {
 		if (evaluateCandidates.size == 0){
 			
 		}
+	}
+	
+	on MemberLeft{
+		if(innerContext.defaultSpace.participants.size == 1) killMe
 	}
 }

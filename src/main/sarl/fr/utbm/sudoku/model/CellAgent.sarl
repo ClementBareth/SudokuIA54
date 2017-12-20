@@ -9,12 +9,12 @@ import fr.utbm.sudoku.capacities.SudokuBaseCommunication
 import fr.utbm.sudoku.capacities.SudokuCommunication
 import fr.utbm.sudoku.capacities.SudokuMaths
 import fr.utbm.sudoku.capacities.SudokuMathsBaseSkill
-import fr.utbm.sudoku.events.NewSolutionFound
+import fr.utbm.sudoku.events.Algos
+import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.PositionX
 import fr.utbm.sudoku.events.PositionY
 import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.Resolve
-import fr.utbm.sudoku.events.SeekNudeSingletons
 import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.Values
@@ -24,6 +24,7 @@ import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Destroy
 import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
+import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.lang.core.EventSpace
 import io.sarl.util.Scopes
@@ -31,12 +32,13 @@ import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
 import java.util.concurrent.locks.ReentrantLock
+
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
 agent CellAgent {
-	uses Logging, ExternalContextAccess, DefaultContextInteractions, SudokuMaths, Behaviors, SudokuCommunication
+	uses Logging, ExternalContextAccess, DefaultContextInteractions, SudokuMaths, Behaviors, Lifecycle
 
 	var x : Integer
 	var y : Integer
@@ -50,6 +52,7 @@ agent CellAgent {
 	var hiddenSingletonBehavior : HiddenSingletonSeekingBehavior
 	var candidatesLock = new ReentrantLock
 	var nbValuesReceivedLock = new ReentrantLock
+	
 
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -68,9 +71,12 @@ agent CellAgent {
 		var commSkill = new SudokuBaseCommunication(x, y, spaces)
 		setSkill(commSkill, SudokuCommunication)
 		nudeSingletonBehavior = new NudeSingletonSeekingBehavior(this, candidates, commSkill)
-		hiddenSingletonBehavior = new HiddenSingletonSeekingBehavior(this, candidates, commSkill)
-		registerBehavior(nudeSingletonBehavior)
-		// registerBehavior(hiddenSingletonBehavior)
+		hiddenSingletonBehavior = new HiddenSingletonSeekingBehavior(this, candidates, commSkill)	
+	}
+	
+	on Algos {
+		if(occurrence.algos.contains(Algorithms.NUDE_SINGLETONS)) registerBehavior(nudeSingletonBehavior)
+		if(occurrence.algos.contains(Algorithms.HIDDEN_SINGLETONS)) registerBehavior(hiddenSingletonBehavior)
 	}
 
 	on ContextJoined {
@@ -123,6 +129,10 @@ agent CellAgent {
 
 	on Destroy {
 		unregisterBehavior(nudeSingletonBehavior)
-		// unregisterBehavior(hiddenSingletonBehavior)
+		unregisterBehavior(hiddenSingletonBehavior)
+	}
+	
+	on Exit{
+		killMe
 	}
 }

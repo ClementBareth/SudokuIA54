@@ -57,6 +57,7 @@ class SudokuApplication extends Application implements EventListener {
 			var scene = new Scene(root);
 			primaryStage.resizable = false
 			primaryStage.setScene(scene);
+			primaryStage.sizeToScene
 			primaryStage.show();
 		} catch (e : Exception) {
 			e.printStackTrace();
@@ -76,7 +77,8 @@ class SudokuApplication extends Application implements EventListener {
 		var gd = GraphicsEnvironment.localGraphicsEnvironment.defaultScreenDevice
 		primaryStage.x = gd.displayMode.width / 4
 		primaryStage.y = 0
-		primaryStage.setScene(gridScene)		
+		primaryStage.setScene(gridScene)
+		primaryStage.sizeToScene	
 	}
 
 	def openInputGrid() : InputGridController {

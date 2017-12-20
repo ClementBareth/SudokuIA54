@@ -2,15 +2,18 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.VBox?>
 <?import javafx.scene.shape.Rectangle?>
 <?import javafx.scene.text.Font?>
 <?import javafx.scene.text.Text?>
 
-<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="1000.0" prefWidth="1000.0" xmlns="http://javafx.com/javafx/9.0.1" xmlns:fx="http://javafx.com/fxml/1">
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="1000.0" prefWidth="1188.0" xmlns="http://javafx.com/javafx/9.0.1" xmlns:fx="http://javafx.com/fxml/1">
    <children>
       <GridPane fx:id="grid" gridLinesVisible="true" layoutX="74.0" layoutY="70.0" prefHeight="800.0" prefWidth="800.0">
          <columnConstraints>
@@ -65,5 +68,23 @@
             <Font name="Trebuchet MS" size="18.0" />
          </font>
       </Button>
+      <TitledPane fx:id="checkboxes" animated="false" collapsible="false" disable="true" layoutX="901.0" layoutY="71.0" prefHeight="270.0" prefWidth="266.0" text="Options de résolution">
+        <content>
+          <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+               <children>
+                  <VBox fx:id="algorithms" prefHeight="242.0" prefWidth="266.0" spacing="10.0">
+                     <children>
+                        <CheckBox fx:id="nude_singleton" mnemonicParsing="false" onMouseClicked="#checkIfOneAlgoSelected" selected="true" text="Recherche de singletons nus" />
+                        <CheckBox fx:id="hidde_singleton" mnemonicParsing="false" onMouseClicked="#checkIfOneAlgoSelected" text="Recherche de singletons cachés" />
+                        <CheckBox fx:id="eco_resolution" mnemonicParsing="false" onMouseClicked="#checkIfOneAlgoSelected" text="Algorithme d'éco-résolution" />
+                     </children>
+                     <padding>
+                        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                     </padding>
+                  </VBox>
+               </children>
+            </AnchorPane>
+        </content>
+      </TitledPane>
    </children>
 </AnchorPane>

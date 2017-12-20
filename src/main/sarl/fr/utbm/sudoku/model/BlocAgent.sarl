@@ -3,22 +3,26 @@
  */
 package fr.utbm.sudoku.model
 
+import fr.utbm.sudoku.behaviors.RegionAgentBehavior
+import fr.utbm.sudoku.events.Algos
+import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.Values
 import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
+import io.sarl.core.Destroy
 import io.sarl.core.Initialize
 import io.sarl.core.InnerContextAccess
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
+import io.sarl.core.MemberLeft
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.List
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
-import fr.utbm.sudoku.behaviors.RegionAgentBehavior
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -34,10 +38,11 @@ agent BlocAgent {
 	var colCtxIds : List<UUID>
 	val agents = new HashMap<Integer, UUID>
 	var valuesLock = new ReentrantLock
+	val regionAgentBehavior = new RegionAgentBehavior(this)
 	
 
 	on Initialize {
-		registerBehavior(new RegionAgentBehavior(this))
+		registerBehavior(regionAgentBehavior)
 		
 		if (occurrence.parameters.length >= 5) {
 			this.startRow = occurrence.parameters.get(0) as Integer
@@ -58,7 +63,7 @@ agent BlocAgent {
 
 	on Resolve [!it.isFrom(ID)] {
 		wake(new Values => [values = new ArrayList<Integer>(blocValues)])
-//		wake(new Resolve )	
+		wake(new Algos => [algos = occurrence.algos])	
 	}
 	
 	on SolutionFound{
@@ -72,7 +77,15 @@ agent BlocAgent {
 		}
 	}
 	
-//	on ReadyToResolve{
-//		wake 
-//	}
+	on Exit{
+		wake(new Exit)
+	}
+
+	on MemberLeft {
+		if(innerContext.defaultSpace.participants.size == 1) killMe
+	}
+	
+	on Destroy{
+		unregisterBehavior(regionAgentBehavior)
+	}
 }
