@@ -42,19 +42,14 @@ agent CellAgent {
 	var y : Integer
 	var rowCtxId : ContextContainer
 	var colCtxId : ContextContainer
-	var rowJoined : boolean
-	var colJoined : boolean
 	var nbValuesReceived = new Integer(0)
 	var values = new HashSet<Integer>
 	var candidates = new ArrayList<Integer>
 	var spaces = new HashMap<RegionTypeEnum, EventSpace>
-
 	var nudeSingletonBehavior : NudeSingletonSeekingBehavior
-	var hiddenSingletonBehavior : HiddenSingletonSeekingBehavior
-	
+	var hiddenSingletonBehavior : HiddenSingletonSeekingBehavior	
 	var candidatesLock = new ReentrantLock
 	var nbValuesReceivedLock = new ReentrantLock	
-
 
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -70,11 +65,7 @@ agent CellAgent {
 		spaces.put(RegionTypeEnum.LIGNE, rowCtxId.^space)
 		spaces.put(RegionTypeEnum.COLONNE, colCtxId.^space)
 		setSkill(new SudokuMathsBaseSkill(values), SudokuMaths)
-		var commSkill = new SudokuBaseCommunication => [
-			x = this.x;
-			y = this.y;
-			spaces = this.spaces
-		]
+		var commSkill = new SudokuBaseCommunication (x,y,spaces)
 		setSkill(commSkill, SudokuCommunication)
 		nudeSingletonBehavior = new NudeSingletonSeekingBehavior(this,candidates,commSkill)
 		hiddenSingletonBehavior = new HiddenSingletonSeekingBehavior(this,candidates,commSkill)
@@ -84,14 +75,12 @@ agent CellAgent {
 
 	on ContextJoined {
 		if (occurrence.holonContextID.equals(rowCtxId.contextId)) {
-			rowJoined = true
 			rowCtxId.^space.emit(
 				new PositionX(y, getID),
 				Scopes.addresses(rowCtxId.^space.getAddress(rowCtxId.id))
 			)
 		}
 		if (occurrence.holonContextID.equals(colCtxId.contextId)) {
-			colJoined = true
 			colCtxId.^space.emit(
 				new PositionY(x, getID),
 				Scopes.addresses(colCtxId.^space.getAddress(colCtxId.id))

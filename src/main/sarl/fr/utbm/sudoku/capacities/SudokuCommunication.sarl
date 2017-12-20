@@ -34,6 +34,12 @@ skill SudokuBaseCommunication implements SudokuCommunication {
 	var x : Integer
 	var y: Integer
 	
+	new (x : Integer, y : Integer, s : Map<RegionTypeEnum, EventSpace>){
+		this.x = x;
+		this.y = y;
+		this.spaces = s;
+	}
+	
 	def emitSolution(v : Integer) {
 		wake(new SolutionFound => [solution = v; x = this.x; y = this.y])
 		emit(new TokenReleased)
