@@ -1,0 +1,86 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.model
+
+import java.util.UUID
+import java.util.concurrent.ConcurrentLinkedQueue
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+class ScanCommand {
+	var type : RegionTypeEnum
+	var candidate : Integer
+	var expectedAnswers : Integer
+	var nbAnswers = new Integer(0)
+	var nbAnswersFalse = new Integer(0)
+	var agentIds = new ConcurrentLinkedQueue<UUID>
+
+	def setType(type : RegionTypeEnum) {
+		this.type = type
+	}
+
+	def setCandidate(candidate : Integer) {
+		this.candidate = candidate
+	}
+
+	def setExpectedAnswers(nb : Integer) {
+		this.expectedAnswers = nb
+	}
+
+	def getType : RegionTypeEnum {
+		type
+	}
+
+	def getCandidate : Integer {
+		candidate
+	}
+
+	def getExpectedAnswers : Integer {
+		expectedAnswers
+	}
+
+	def getNbAnswers : Integer {
+		nbAnswers
+	}
+
+	def getNbAnswersFalse : Integer {
+		nbAnswersFalse
+	}
+
+	def private incrAnswers {
+		nbAnswers++
+	}
+
+	def private incrAnswersFalse {
+		nbAnswersFalse++
+	}
+
+	def private isOver : boolean {
+		nbAnswers == expectedAnswers
+	}
+
+	def private isSolution : boolean {
+		nbAnswersFalse == expectedAnswers
+	}
+	/** 
+	 * @returns null if is not over, -1 if it is over without solution, the solution if it is over with solution
+	 */
+	def addAnswer(id : UUID, answer : boolean) : Integer {
+		if (!agentIds.contains(id)) {
+			agentIds.add(id)
+			incrAnswers
+			if (answer == false) {
+				incrAnswersFalse
+				if(isSolution) return candidate
+			}
+			if(isOver) return -1
+		}
+		return null
+	}
+	
+	def hasAgentAnswered(id : UUID){
+		agentIds.contains(id)
+	}
+}

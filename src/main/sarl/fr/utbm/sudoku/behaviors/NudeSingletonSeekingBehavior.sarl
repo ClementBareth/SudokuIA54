@@ -10,7 +10,7 @@ import fr.utbm.sudoku.events.SeekNudeSingletons
 import fr.utbm.sudoku.events.SolutionFound
 import io.sarl.core.Initialize
 import io.sarl.lang.core.Agent
-import java.util.List
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -20,10 +20,10 @@ behavior NudeSingletonSeekingBehavior {
 	uses SudokuCommunication
 	
 	var resolving = true
-	var candidates : List<Integer>
+	var candidates : ConcurrentLinkedQueue<Integer>
 	var communicationSkill : SudokuBaseCommunication
 	
-	new (a : Agent, c : List<Integer>, s : SudokuBaseCommunication){
+	new (a : Agent, c : ConcurrentLinkedQueue<Integer>, s : SudokuBaseCommunication) {
 		super(a)
 		this.candidates = c
 		this.communicationSkill = s
@@ -48,7 +48,7 @@ behavior NudeSingletonSeekingBehavior {
 	def seekSolution() {
 		if (resolving && candidates.size == 1) {
 			resolving = false
-			emitToAllHolons(new SolutionFound => [solution = candidates.get(0); x = getX; y = getY])
+			emitToAllHolons(new SolutionFound => [solution = candidates.element; x = getX; y = getY])
 		}
 	}
 	

@@ -28,9 +28,9 @@ import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.lang.core.EventSpace
 import io.sarl.util.Scopes
-import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.ReentrantLock
 
 /** 
@@ -46,7 +46,7 @@ agent CellAgent {
 	var colCtxId : ContextContainer
 	var nbValuesReceived = new Integer(0)
 	var values = new HashSet<Integer>
-	var candidates = new ArrayList<Integer>
+	var candidates = new ConcurrentLinkedQueue<Integer>
 	var spaces = new HashMap<RegionTypeEnum, EventSpace>
 	var nudeSingletonBehavior : NudeSingletonSeekingBehavior
 	var hiddenSingletonBehavior : HiddenSingletonSeekingBehavior
