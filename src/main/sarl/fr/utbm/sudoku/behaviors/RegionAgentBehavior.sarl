@@ -4,7 +4,6 @@
 package fr.utbm.sudoku.behaviors
 
 import fr.utbm.sudoku.events.ReadyToResolve
-import fr.utbm.sudoku.events.SeekNudeSingletons
 import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
@@ -68,7 +67,6 @@ behavior RegionAgentBehavior {
 	on ReadyToResolve{
 		tokens.put(occurrence.source.UUID, 0);
 		if (tokens.size == innerContext.defaultSpace.participants.size-1) {
-			wake(new SeekNudeSingletons)
 			tokens.put(occurrence.source.UUID, 1);
 			sendToken(occurrence.source.UUID)
 		}

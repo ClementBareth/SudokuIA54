@@ -3,11 +3,7 @@
  */
 package fr.utbm.sudoku.capacities
 
-import fr.utbm.sudoku.events.SolutionFound
-import fr.utbm.sudoku.events.TokenReleased
 import fr.utbm.sudoku.model.RegionTypeEnum
-import io.sarl.core.Behaviors
-import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.ExternalContextAccess
 import io.sarl.lang.core.Event
 import io.sarl.lang.core.EventSpace
@@ -21,7 +17,6 @@ capacity SudokuCommunication {
 	
 	def emitToAllHolons(e:Event)
 	def emitToHolon(e:Event,type:RegionTypeEnum)
-	def emitSolution(v : Integer)
 	def getX : Integer
 	def getY : Integer
 	def getSpaces : Map<RegionTypeEnum, EventSpace>
@@ -29,7 +24,7 @@ capacity SudokuCommunication {
 }
 
 skill SudokuBaseCommunication implements SudokuCommunication {
-	uses DefaultContextInteractions, ExternalContextAccess, Behaviors
+	uses ExternalContextAccess
 	
 	var spaces : Map<RegionTypeEnum,EventSpace>
 	var x : Integer
@@ -39,11 +34,6 @@ skill SudokuBaseCommunication implements SudokuCommunication {
 		this.x = x;
 		this.y = y;
 		this.spaces = s;
-	}
-	
-	def emitSolution(v : Integer) {
-		wake(new SolutionFound => [solution = v; x = this.x; y = this.y])
-		emit(new TokenReleased)
 	}
 
 	def emitToAllHolons(e : Event) {

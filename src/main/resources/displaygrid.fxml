@@ -75,7 +75,7 @@
                   <VBox fx:id="algorithms" prefHeight="242.0" prefWidth="266.0" spacing="10.0">
                      <children>
                         <CheckBox fx:id="nude_singleton" mnemonicParsing="false" onMouseClicked="#checkIfOneAlgoSelected" selected="true" text="Recherche de singletons nus" />
-                        <CheckBox fx:id="hidde_singleton" mnemonicParsing="false" onMouseClicked="#checkIfOneAlgoSelected" text="Recherche de singletons cachés" />
+                        <CheckBox fx:id="hidden_singleton" mnemonicParsing="false" onMouseClicked="#checkIfOneAlgoSelected" text="Recherche de singletons cachés" />
                         <CheckBox fx:id="eco_resolution" mnemonicParsing="false" onMouseClicked="#checkIfOneAlgoSelected" text="Algorithme d'éco-résolution" />
                      </children>
                      <padding>

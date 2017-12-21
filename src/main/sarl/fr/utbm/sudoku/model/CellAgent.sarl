@@ -51,8 +51,7 @@ agent CellAgent {
 	var nudeSingletonBehavior : NudeSingletonSeekingBehavior
 	var hiddenSingletonBehavior : HiddenSingletonSeekingBehavior
 	var candidatesLock = new ReentrantLock
-	var nbValuesReceivedLock = new ReentrantLock
-	
+	var nbValuesReceivedLock = new ReentrantLock	
 
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -76,7 +75,9 @@ agent CellAgent {
 	
 	on Algos {
 		if(occurrence.algos.contains(Algorithms.NUDE_SINGLETONS)) registerBehavior(nudeSingletonBehavior)
-		if(occurrence.algos.contains(Algorithms.HIDDEN_SINGLETONS)) registerBehavior(hiddenSingletonBehavior)
+		if(occurrence.algos.contains(Algorithms.HIDDEN_SINGLETONS)) {
+			registerBehavior(hiddenSingletonBehavior)		
+		}
 	}
 
 	on ContextJoined {
@@ -108,6 +109,7 @@ agent CellAgent {
 			candidates.addAll(evaluateCandidates)
 			candidatesLock.unlock
 			emit(new ReadyToResolve)
+			wake(new ReadyToResolve)
 		} else {
 			nbValuesReceivedLock.unlock
 		}

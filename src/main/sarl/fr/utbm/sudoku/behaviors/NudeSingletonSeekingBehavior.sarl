@@ -5,8 +5,8 @@ package fr.utbm.sudoku.behaviors
 
 import fr.utbm.sudoku.capacities.SudokuBaseCommunication
 import fr.utbm.sudoku.capacities.SudokuCommunication
+import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.Resolve
-import fr.utbm.sudoku.events.SeekNudeSingletons
 import fr.utbm.sudoku.events.SolutionFound
 import io.sarl.core.Initialize
 import io.sarl.lang.core.Agent
@@ -33,11 +33,11 @@ behavior NudeSingletonSeekingBehavior {
 		seekSolution
 	}
 
-	on SolutionFound [resolving] {
+	on SolutionFound [resolving && !isFromMe] {
 		seekSolution
 	}
 	
-	on SeekNudeSingletons [resolving]{
+	on ReadyToResolve{
 		seekSolution
 	}
 
@@ -48,7 +48,7 @@ behavior NudeSingletonSeekingBehavior {
 	def seekSolution() {
 		if (resolving && candidates.size == 1) {
 			resolving = false
-			emitToAllHolons(new SolutionFound => [solution = candidates.element; x = getX; y = getY])
+			emitToAllHolons(new SolutionFound => [solution = candidates.poll; x = getX; y = getY])
 		}
 	}
 	

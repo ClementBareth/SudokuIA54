@@ -7,8 +7,9 @@ import fr.utbm.sudoku.capacities.SudokuBaseCommunication
 import fr.utbm.sudoku.capacities.SudokuCommunication
 import fr.utbm.sudoku.events.AnswerForCandidate
 import fr.utbm.sudoku.events.AskForCandidate
-import fr.utbm.sudoku.events.Resolve
+import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.SolutionFound
+import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
 import fr.utbm.sudoku.model.RegionTypeEnum
 import fr.utbm.sudoku.model.ScanCommand
@@ -48,8 +49,16 @@ behavior HiddenSingletonSeekingBehavior {
 		setSkill(sudokuCommunicationSkill, SudokuCommunication)
 	}
 
-	on Resolve [resolving && candidates.size > 1 && !scanning] {
+	on TokenReceived [resolving && scanQueue.size > 0] {
 		scanning = true
+		scanNextRegion
+	}
+
+	on TokenReceived [!resolving || scanQueue.size == 0] {
+		emit(new TokenReleased)
+	}
+
+	on ReadyToResolve {
 		for (c : candidates) {
 			for (type : RegionTypeEnum.values) {
 				var scanCommand = new ScanCommand => [
@@ -60,11 +69,10 @@ behavior HiddenSingletonSeekingBehavior {
 				scanQueue.add(scanCommand)
 			}
 		}
-		scanNextRegion
 	}
 
 	on SolutionFound [!isFromMe] {
-		var regions = determineRegion(occurrence)
+		var regions = determineRegion(occurrence.x, occurrence.y)
 		for (r : regions) {
 			for (c : candidates) {
 				if (c !== occurrence.solution) { // On vérifie quand même au cas où
@@ -73,29 +81,50 @@ behavior HiddenSingletonSeekingBehavior {
 						it.type = r;
 						it.expectedAnswers = spaces.get(r).participants.size - 2
 					]
-					scanQueue.add(scanCommand)
+					// On vérifie qu'une commande similaire n'est pas en attente
+					if (!scanQueue.contains(scanCommand)) {
+						scanQueue.add(scanCommand)
+					}
 				}
 			}
+		}
+		// On supprime les commandes de scan qui étaient liées à ce candidat dans les régions concernées
+		var elemsToRemove = new ArrayList<ScanCommand>
+		for (sc : scanQueue) {
+			if (sc.candidate == occurrence.solution && regions.contains(sc.type)) {
+				elemsToRemove.add(sc)
+			}
+		}
+		scanQueue.removeAll(elemsToRemove)
+		// Si la commande de scan actuel concerne la solution trouvée, on passe à la commande suivante
+		if (scanCommand !== null && scanCommand.candidate == occurrence.solution) {
+			scanNextRegion
 		}
 	}
 	/** 
 	 * L'agent reçoit une réponse à son AskForCandidate
 	 * Si aucun agent d'un des holons partagés ne peut recevoir le candidat, alors on a une solution
 	 */
-	on AnswerForCandidate [resolving && !isFromMe && !scanCommand.hasAgentAnswered(occurrence.source.UUID)] {
+	on AnswerForCandidate [scanCommand !== null && scanCommand.candidate == occurrence.value && resolving &&
+		!isFromMe && !scanCommand.hasAgentAnswered(occurrence.source.UUID)] {
 
 		scanCommandLock.lock
 		var result = scanCommand.addAnswer(occurrence.source.UUID, occurrence.answer)
+		var candidate = scanCommand.candidate
 		scanCommandLock.unlock
-		
-		if (result == -1) {
-			// Scan terminé sans solution
-			scanNextRegion
-		} else if (result > 0) {
-			// Scan terminé avec solution
-			scanning = false
-			resolving = false
-			emitSolution(scanCommand.candidate)
+
+		if (result !== null) {
+			if (result == -1) {
+				// Scan terminé sans solution
+				scanNextRegion
+			} else if (result > 0) {
+				// Scan terminé avec solution
+				scanning = false
+				resolving = false
+				candidates.clear
+				emitToAllHolons(new SolutionFound => [solution = candidate; x = getX; y = getY])
+				relaseToken
+			}
 		}
 
 	}
@@ -113,6 +142,7 @@ behavior HiddenSingletonSeekingBehavior {
 			y = getY;
 			type = occurrence.type;
 		]
+
 		answerEvent.source = spaces.get(occurrence.type).getAddress(ID)
 		spaces.get(occurrence.type).emit(answerEvent, Scopes::addresses(occurrence.source))
 	}
@@ -125,19 +155,25 @@ behavior HiddenSingletonSeekingBehavior {
 		scanCommandLock.lock
 		scanCommand = scanQueue.poll
 		scanCommandLock.unlock
-		var e = new AskForCandidate(scanCommand.candidate, scanCommand.type)
 		if (scanCommand !== null) {
+			var e = new AskForCandidate(scanCommand.candidate, scanCommand.type)
 			e.emitToHolon(scanCommand.type)
+		} else {
+			relaseToken
 		}
 	}
 
-	def determineRegion(e : SolutionFound) : List<RegionTypeEnum> {
+	def determineRegion(x1 : Integer, y1 : Integer) : List<RegionTypeEnum> {
 		var regions = new ArrayList<RegionTypeEnum>
-		if(e.x == x) regions.add(RegionTypeEnum.LIGNE)
-		if(e.y == y) regions.add(RegionTypeEnum.COLONNE)
-		if (Math.abs(e.x - x) < 3 && Math.abs(e.y - y) < 3) {
-			regions.add(RegionTypeEnum.BLOC)
-		}
+		if(x1 == x) regions.add(RegionTypeEnum.LIGNE)
+		if(y1 == y) regions.add(RegionTypeEnum.COLONNE)
+		var row = x / 3 as Integer
+		var col = y / 3 as Integer
+		var solRow = x1 / 3 as Integer
+		var solCol = y1 / 3 as Integer
+		if(row == solRow && col == solCol) regions.add(RegionTypeEnum.BLOC)
 		return regions
 	}
+
+	//	def populateScanQueue
 }

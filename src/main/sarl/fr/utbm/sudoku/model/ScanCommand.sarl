@@ -5,6 +5,7 @@ package fr.utbm.sudoku.model
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
+
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
@@ -16,6 +17,10 @@ class ScanCommand {
 	var nbAnswers = new Integer(0)
 	var nbAnswersFalse = new Integer(0)
 	var agentIds = new ConcurrentLinkedQueue<UUID>
+	
+	def equals(scanCommand : ScanCommand){
+		type == scanCommand.type && candidate == scanCommand.candidate
+	}
 
 	def setType(type : RegionTypeEnum) {
 		this.type = type
