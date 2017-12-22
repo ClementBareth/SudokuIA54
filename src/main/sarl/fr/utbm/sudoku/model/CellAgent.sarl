@@ -11,8 +11,7 @@ import fr.utbm.sudoku.capacities.SudokuMaths
 import fr.utbm.sudoku.capacities.SudokuMathsBaseSkill
 import fr.utbm.sudoku.events.Algos
 import fr.utbm.sudoku.events.Exit
-import fr.utbm.sudoku.events.PositionX
-import fr.utbm.sudoku.events.PositionY
+import fr.utbm.sudoku.events.Position
 import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
@@ -83,13 +82,13 @@ agent CellAgent {
 	on ContextJoined {
 		if (occurrence.holonContextID.equals(rowCtxId.contextId)) {
 			rowCtxId.^space.emit(
-				new PositionX(y, getID),
+				new Position(y, getID, RegionTypeEnum.LIGNE),
 				Scopes.addresses(rowCtxId.^space.getAddress(rowCtxId.id))
 			)
 		}
 		if (occurrence.holonContextID.equals(colCtxId.contextId)) {
 			colCtxId.^space.emit(
-				new PositionY(x, getID),
+				new Position(y, getID, RegionTypeEnum.COLONNE),
 				Scopes.addresses(colCtxId.^space.getAddress(colCtxId.id))
 			)
 		}

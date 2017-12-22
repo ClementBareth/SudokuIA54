@@ -1,0 +1,81 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.model
+
+import fr.utbm.sudoku.capacities.SudokuMaths
+import fr.utbm.sudoku.capacities.SudokuMathsBaseSkill
+import fr.utbm.sudoku.events.Position
+import fr.utbm.sudoku.events.RegionAgentInitialized
+import fr.utbm.sudoku.events.RegionAgentSpawned
+import fr.utbm.sudoku.events.Resolve
+import fr.utbm.sudoku.events.Values
+import io.sarl.core.Behaviors
+import io.sarl.core.DefaultContextInteractions
+import io.sarl.core.Initialize
+import io.sarl.core.InnerContextAccess
+import io.sarl.core.Lifecycle
+import io.sarl.core.Logging
+import io.sarl.core.MemberLeft
+import java.util.List
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+agent RowAndColAgent {
+	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors, SudokuMaths, Lifecycle
+
+	var position : Integer
+	var values : List<Integer>
+	var agents = new ConcurrentHashMap<Integer, UUID>
+	var agentType : RegionTypeEnum
+
+	on Initialize {
+		if (occurrence.parameters.length >= 3) {
+			this.position = occurrence.parameters.get(0) as Integer
+			this.values = occurrence.parameters.get(1) as List<Integer>
+			this.agentType = occurrence.parameters.get(2) as RegionTypeEnum
+			loggingName = agentType + " n° " + position
+		}
+		setSkill(new SudokuMathsBaseSkill(values.toSet), SudokuMaths)
+		emit(new RegionAgentSpawned => [
+			it.num = position;
+			contextId = innerContext.ID;
+			^space = innerContext.defaultSpace;
+			Id = ID;
+			it.type = agentType;
+		])
+	}
+
+	def countZeros : Integer {
+		var j = 0;
+		for (i : values) {
+			if (i === null || i == 0) {
+				j++
+			}
+		}
+		return j;
+	}
+
+	on Resolve [!isFromMe] {
+		wake(new Values => [values = this.values])
+	}
+
+	on Position {
+		agents.put(occurrence.pos, occurrence.id)
+		if (agents.size == countZeros) {
+			emit(
+				new RegionAgentInitialized => [
+					id = ID;
+					it.type = this.agentType;
+				]
+			)
+		}
+	}
+
+	on MemberLeft {
+		if(innerContext.defaultSpace.participants.size == 1) killMe
+	}
+}

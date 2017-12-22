@@ -29,27 +29,28 @@ event TokenReceived
 
 event TokenReleased
 
-event RowAgentSpawned {
+event RegionAgentInitialized {
+	var id : UUID
+	var type : RegionTypeEnum
+}
+
+event RegionAgentSpawned {
 	var contextId : UUID
 	var num : Integer
 	var ^space : EventSpace
 	var Id : UUID
+	var type : RegionTypeEnum
 }
 
-event ColAgentSpawned {
-	var contextId : UUID
-	var num : Integer
-	var ^space : EventSpace
-	var Id : UUID
-}
-
-event PositionX {
+event Position {
 	var pos : Integer
 	var id : UUID
-
-	new (p : Integer, uuid : UUID) {
-		pos = p
+	var type : RegionTypeEnum
+	
+	new (p : Integer, uuid : UUID, t : RegionTypeEnum){
+		pos = p 
 		id = uuid
+		type = t
 	}
 }
 
@@ -91,20 +92,6 @@ event UpdateSudoku {
 	var y : Integer
 }
 
-event PositionY {
-	var pos : Integer
-	var id : UUID
-
-	new (p : Integer, uuid : UUID) {
-		pos = p
-		id = uuid
-	}
-}
-
-event FatherAcknowledge{
-	var id : UUID
-}
-
 event ReadyToResolve
 
 event Resolve{
@@ -119,8 +106,6 @@ event Algos {
 event Values{
 	var values : List<Integer>
 }
-
-event SendMessages
 
 event AskForCandidate{
 	

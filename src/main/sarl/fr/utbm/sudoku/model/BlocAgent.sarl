@@ -3,25 +3,28 @@
  */
 package fr.utbm.sudoku.model
 
-import fr.utbm.sudoku.behaviors.RegionAgentBehavior
 import fr.utbm.sudoku.events.Algos
 import fr.utbm.sudoku.events.Exit
+import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.SolutionFoundInBloc
+import fr.utbm.sudoku.events.TokenReceived
+import fr.utbm.sudoku.events.TokenReleased
 import fr.utbm.sudoku.events.Values
 import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
-import io.sarl.core.Destroy
 import io.sarl.core.Initialize
 import io.sarl.core.InnerContextAccess
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.core.MemberLeft
+import io.sarl.util.Scopes
 import java.util.ArrayList
-import java.util.HashMap
+import java.util.Collections
 import java.util.List
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 
 /** 
@@ -30,45 +33,43 @@ import java.util.concurrent.locks.ReentrantLock
  */
 agent BlocAgent {
 	uses Logging, InnerContextAccess, Lifecycle, Behaviors, DefaultContextInteractions
-	
+
 	var startRow : Integer
 	var startCol : Integer
 	var blocValues : List<Integer>
-	var rowCtxIds : List<UUID>
-	var colCtxIds : List<UUID>
-	val agents = new HashMap<Integer, UUID>
+	var rowCtxIds : ConcurrentHashMap<Integer, ContextContainer>
+	var colCtxIds : ConcurrentHashMap<Integer, ContextContainer>
+	val agents = new ConcurrentHashMap<Integer, UUID>
 	var valuesLock = new ReentrantLock
-	val regionAgentBehavior = new RegionAgentBehavior(this)
-	
+	var tokens = new ConcurrentHashMap<UUID, Integer>
+	var agentResolving : UUID = null
 
 	on Initialize {
-		registerBehavior(regionAgentBehavior)
-		
 		if (occurrence.parameters.length >= 5) {
 			this.startRow = occurrence.parameters.get(0) as Integer
 			this.startCol = occurrence.parameters.get(1) as Integer
 			this.blocValues = occurrence.parameters.get(2) as List<Integer>
-			this.rowCtxIds = occurrence.parameters.get(3) as List<UUID>
-			this.colCtxIds = occurrence.parameters.get(4) as List<UUID>
-			loggingName = "Bloc n°(" + startRow + ","+startCol+")"
+			this.rowCtxIds = occurrence.parameters.get(3) as ConcurrentHashMap<Integer, ContextContainer>
+			this.colCtxIds = occurrence.parameters.get(4) as ConcurrentHashMap<Integer, ContextContainer>
+			loggingName = "Bloc n°(" + startRow + "," + startCol + ")"
 		}
 		for (var i = 0; i < 9; i++) {
 			if (blocValues.get(i) === null || blocValues.get(i) == 0) {
 				var row = startRow + i / 3 as Integer
 				var col = startCol + i % 3
-				agents.put(i, CellAgent.spawnInContext(innerContext, rowCtxIds.get(row), colCtxIds.get(col),row,col))
+				agents.put(i, CellAgent.spawnInContext(innerContext, rowCtxIds.get(row), colCtxIds.get(col), row, col))
 			}
 		}
 	}
 
 	on Resolve [!it.isFrom(ID)] {
-		wake(new Values => [values = new ArrayList<Integer>(blocValues)])
-		wake(new Algos => [algos = occurrence.algos])	
+		wake(new Values => [values = blocValues])
+		wake(new Algos => [algos = occurrence.algos])
 	}
-	
-	on SolutionFound{
+
+	on SolutionFound {
 		valuesLock.lock
-		if(!blocValues.contains(occurrence.solution)){
+		if (!blocValues.contains(occurrence.solution)) {
 			blocValues.add(occurrence.solution)
 			valuesLock.unlock
 			emit(new SolutionFoundInBloc => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y])
@@ -76,16 +77,59 @@ agent BlocAgent {
 			valuesLock.unlock
 		}
 	}
-	
-	on Exit{
+
+	on Exit {
 		wake(new Exit)
 	}
 
 	on MemberLeft {
 		if(innerContext.defaultSpace.participants.size == 1) killMe
 	}
-	
-	on Destroy{
-		unregisterBehavior(regionAgentBehavior)
+	/** 
+	 * Détermine l'agent qui a eu le token le moins de fois jusqu'ici
+	 */
+	def determineAgentToReceiveToken : UUID {
+		var min = Collections.min(tokens.values)
+		for (entry : tokens.entrySet) {
+			if (entry.value == min) {
+				return entry.key
+			}
+		}
 	}
+	/** 
+	 * Envois du token à l'agent concerné
+	 */
+	def sendToken(id : UUID) {
+		agentResolving = id;
+		wake(
+			new TokenReceived,
+			Scopes.addresses(innerContext.defaultSpace.getAddress(id))
+		)
+	}
+	/** 
+	 * Le token a été relâché par l'agent qui l'avait
+	 */
+	on TokenReleased {
+		var nb = tokens.get(occurrence.source.UUID)
+		if (nb !== null) {
+			nb++
+			tokens.put(occurrence.source.UUID, nb)
+		}
+		if(tokens.size > 0) sendToken(determineAgentToReceiveToken)
+	}
+	/** 
+	 * L'agent est initialisé
+	 */
+	on ReadyToResolve {
+		tokens.put(occurrence.source.UUID, 0);
+		if (tokens.size == innerContext.defaultSpace.participants.size - 1) {
+			tokens.put(occurrence.source.UUID, 1);
+			sendToken(occurrence.source.UUID)
+		}
+	}
+
+	on SolutionFound {
+		tokens.remove(occurrence.source.UUID)
+	}
+
 }
