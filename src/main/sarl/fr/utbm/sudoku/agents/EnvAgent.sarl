@@ -1,24 +1,21 @@
 /** 
  * 
  */
-package fr.utbm.sudoku
+package fr.utbm.sudoku.agents
 
+import fr.utbm.sudoku.SudokuApplication
 import fr.utbm.sudoku.controllers.GridController
-import fr.utbm.sudoku.events.ColInitialized
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.RegionAgentInitialized
 import fr.utbm.sudoku.events.RegionAgentSpawned
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.RowAndColInit
 import fr.utbm.sudoku.events.RowAndColSpawned
-import fr.utbm.sudoku.events.RowInitialized
 import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.SpawnRequired
 import fr.utbm.sudoku.events.UpdateSudoku
-import fr.utbm.sudoku.model.BlocAgent
 import fr.utbm.sudoku.model.ContextContainer
 import fr.utbm.sudoku.model.RegionTypeEnum
-import fr.utbm.sudoku.model.RowAndColAgent
 import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.ExternalContextAccess
@@ -29,7 +26,6 @@ import io.sarl.util.OpenEventSpace
 import java.util.ArrayList
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.locks.ReentrantLock
 
 agent EnvAgent {
 
@@ -41,8 +37,6 @@ agent EnvAgent {
 
 	val rowCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
 	val colCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
-	val rowCountLock = new ReentrantLock
-	val colCountLock = new ReentrantLock
 	var openSpace : OpenEventSpace
 
 	var rowInit = new Integer(0);

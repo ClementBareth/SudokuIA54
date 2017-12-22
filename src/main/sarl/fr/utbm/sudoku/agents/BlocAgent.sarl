@@ -1,7 +1,7 @@
 /** 
  * 
  */
-package fr.utbm.sudoku.model
+package fr.utbm.sudoku.agents
 
 import fr.utbm.sudoku.events.Algos
 import fr.utbm.sudoku.events.Exit
@@ -12,6 +12,7 @@ import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
 import fr.utbm.sudoku.events.Values
+import fr.utbm.sudoku.model.ContextContainer
 import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
@@ -20,7 +21,6 @@ import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.core.MemberLeft
 import io.sarl.util.Scopes
-import java.util.ArrayList
 import java.util.Collections
 import java.util.List
 import java.util.UUID

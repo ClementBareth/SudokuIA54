@@ -1,15 +1,14 @@
 /** 
  * 
  */
-package fr.utbm.sudoku.model
+package fr.utbm.sudoku.agents
 
-import fr.utbm.sudoku.capacities.SudokuMaths
-import fr.utbm.sudoku.capacities.SudokuMathsBaseSkill
 import fr.utbm.sudoku.events.Position
 import fr.utbm.sudoku.events.RegionAgentInitialized
 import fr.utbm.sudoku.events.RegionAgentSpawned
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.Values
+import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
@@ -20,12 +19,13 @@ import io.sarl.core.MemberLeft
 import java.util.List
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
 agent RowAndColAgent {
-	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors, SudokuMaths, Lifecycle
+	uses Logging, InnerContextAccess, DefaultContextInteractions, Behaviors, Lifecycle
 
 	var position : Integer
 	var values : List<Integer>
@@ -39,7 +39,6 @@ agent RowAndColAgent {
 			this.agentType = occurrence.parameters.get(2) as RegionTypeEnum
 			loggingName = agentType + " n° " + position
 		}
-		setSkill(new SudokuMathsBaseSkill(values.toSet), SudokuMaths)
 		emit(new RegionAgentSpawned => [
 			it.num = position;
 			contextId = innerContext.ID;
@@ -68,7 +67,7 @@ agent RowAndColAgent {
 		if (agents.size == countZeros) {
 			emit(
 				new RegionAgentInitialized => [
-					id = ID;
+					it.id = ID;
 					it.type = this.agentType;
 				]
 			)

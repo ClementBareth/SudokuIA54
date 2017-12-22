@@ -1,9 +1,8 @@
 /** 
  * 
  */
-package fr.utbm.sudoku.model
+package fr.utbm.sudoku.agents
 
-import fr.utbm.sudoku.EnvAgent
 import fr.utbm.sudoku.SudokuApplication
 import fr.utbm.sudoku.dao.NitriteManager
 import fr.utbm.sudoku.events.Exit

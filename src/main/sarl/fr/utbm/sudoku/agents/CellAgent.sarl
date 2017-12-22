@@ -1,7 +1,7 @@
 /** 
  * 
  */
-package fr.utbm.sudoku.model
+package fr.utbm.sudoku.agents
 
 import fr.utbm.sudoku.behaviors.HiddenSingletonSeekingBehavior
 import fr.utbm.sudoku.behaviors.NudeSingletonSeekingBehavior
@@ -17,6 +17,9 @@ import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.Values
+import fr.utbm.sudoku.model.Algorithms
+import fr.utbm.sudoku.model.ContextContainer
+import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.Behaviors
 import io.sarl.core.ContextJoined
 import io.sarl.core.DefaultContextInteractions
