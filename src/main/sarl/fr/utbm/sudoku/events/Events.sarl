@@ -25,6 +25,12 @@ event SpawnRequired {
 	var controller : GridController
 }
 
+event Aggression{
+	var value : Integer
+	var x : Integer
+	var y : Integer
+}
+
 event TokenReceived 
 
 event TokenReleased

@@ -3,6 +3,7 @@
  */
 package fr.utbm.sudoku.agents
 
+import fr.utbm.sudoku.events.Aggression
 import fr.utbm.sudoku.events.Algos
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.ReadyToResolve
@@ -76,6 +77,10 @@ agent BlocAgent {
 		} else {
 			valuesLock.unlock
 		}
+	}
+	
+	on Aggression {
+		emit(new SolutionFoundInBloc => [solution = occurrence.value; x = occurrence.x; y = occurrence.y])
 	}
 
 	on Exit {

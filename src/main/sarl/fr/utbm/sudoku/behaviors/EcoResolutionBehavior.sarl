@@ -1,0 +1,87 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.behaviors
+
+import fr.utbm.sudoku.capacities.SudokuBaseCommunication
+import fr.utbm.sudoku.capacities.SudokuCommunication
+import fr.utbm.sudoku.events.Aggression
+import io.sarl.core.Initialize
+import io.sarl.core.Logging
+import io.sarl.lang.core.Agent
+import java.util.ArrayList
+import java.util.Collections
+import java.util.HashMap
+import java.util.List
+import java.util.Map
+import java.util.concurrent.ConcurrentLinkedQueue
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+behavior EcoResolutionBehavior {
+
+	uses SudokuCommunication, Logging
+
+	var sudokuCommunicationSkill : SudokuBaseCommunication
+	var values : ConcurrentLinkedQueue<Integer>
+	var actualValue = new Integer(0)
+
+	on Initialize {
+		setSkill(sudokuCommunicationSkill, SudokuCommunication)
+	}
+
+	new(^agent : Agent, values : ConcurrentLinkedQueue<Integer>, s : SudokuBaseCommunication) {
+		super(^agent)
+		this.values = values
+		this.sudokuCommunicationSkill = s
+	}
+
+	on Aggression [!satisfied || (satisfied && actualValue == occurrence.value)] {
+		var candidates = valuesWithLessOccurrences
+		candidates.removeAll(#[actualValue, occurrence.value])
+		if (candidates.size > 0) {
+			actualValue = pollRandomValueFromList(candidates)
+			var aggression = new Aggression => [value = actualValue; x = getX; y = getY]
+			aggression.emitToAllHolons
+		}else{
+			error("No values possible")
+		}
+	}
+
+	def private satisfied : boolean {
+		return actualValue != 0 && !values.contains(actualValue)
+	}
+
+	def private getValuesWithLessOccurrences : List<Integer> {
+		var occurrences = occurrencesMap
+		var min = Collections.min(occurrences.values)
+		var list = new ArrayList<Integer>
+		for (e : occurrences.entrySet) {
+			if (e.value.equals(min)) {
+				list.add(e.key)
+			}
+		}
+		return list;
+	}
+
+	def private countOccurrences(candidate : Integer) : Integer {
+		return Collections.frequency(values, candidate)
+	}
+
+	def private getOccurrencesMap : Map<Integer, Integer> {
+		var map = new HashMap<Integer, Integer>
+		for (c : values) {
+			map.put(c, c.countOccurrences)
+		}
+		return map
+	}
+
+	def private pollRandomValueFromList(list : List<Integer>) {
+		Collections.shuffle(list)
+		var value = list.get(0)
+		list.remove(value)
+		return value
+	}
+}
