@@ -9,17 +9,20 @@ import fr.utbm.sudoku.events.AnswerForCandidate
 import fr.utbm.sudoku.events.AskForCandidate
 import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.SolutionFound
+import fr.utbm.sudoku.events.StopResolve
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
 import fr.utbm.sudoku.model.RegionTypeEnum
 import fr.utbm.sudoku.model.ScanCommand
+import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
 import io.sarl.lang.core.Agent
 import io.sarl.util.Scopes
 import java.util.ArrayList
-import java.util.List
+import java.util.Set
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.ReentrantLock
 
@@ -29,7 +32,7 @@ import java.util.concurrent.locks.ReentrantLock
  */
 behavior HiddenSingletonSeekingBehavior {
 
-	uses DefaultContextInteractions, SudokuCommunication, ExternalContextAccess
+	uses DefaultContextInteractions, SudokuCommunication, ExternalContextAccess, Behaviors
 
 	var resolving = true
 	var scanning = false
@@ -38,11 +41,15 @@ behavior HiddenSingletonSeekingBehavior {
 	var scanQueue = new ConcurrentLinkedQueue<ScanCommand>
 	var scanCommand : ScanCommand
 	var scanCommandLock = new ReentrantLock
+	var regionValues = new ConcurrentHashMap<RegionTypeEnum, Set<Integer>>
+	
 
-	new (a : Agent, c : ConcurrentLinkedQueue<Integer>, s : SudokuBaseCommunication) {
+	new (a : Agent, c : ConcurrentLinkedQueue<Integer>, s : SudokuBaseCommunication,
+		rv : ConcurrentHashMap<RegionTypeEnum, Set<Integer>>) {
 		super(a)
 		this.candidates = c
 		this.sudokuCommunicationSkill = s
+		this.regionValues = rv;
 	}
 
 	on Initialize {
@@ -121,7 +128,11 @@ behavior HiddenSingletonSeekingBehavior {
 				// Scan terminé avec solution
 				scanning = false
 				resolving = false
+				wake(new StopResolve)
 				candidates.clear
+				for (v : RegionTypeEnum.values) {
+					regionValues.get(v).add(candidate)
+				}
 				emitToAllHolons(new SolutionFound => [solution = candidate; x = getX; y = getY])
 				relaseToken
 			}
@@ -162,18 +173,4 @@ behavior HiddenSingletonSeekingBehavior {
 			relaseToken
 		}
 	}
-
-	def determineRegion(x1 : Integer, y1 : Integer) : List<RegionTypeEnum> {
-		var regions = new ArrayList<RegionTypeEnum>
-		if(x1 == x) regions.add(RegionTypeEnum.LIGNE)
-		if(y1 == y) regions.add(RegionTypeEnum.COLONNE)
-		var row = x / 3 as Integer
-		var col = y / 3 as Integer
-		var solRow = x1 / 3 as Integer
-		var solCol = y1 / 3 as Integer
-		if(row == solRow && col == solCol) regions.add(RegionTypeEnum.BLOC)
-		return regions
-	}
-
-	//	def populateScanQueue
 }

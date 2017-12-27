@@ -4,12 +4,12 @@
 package fr.utbm.sudoku.events
 
 import fr.utbm.sudoku.controllers.GridController
+import fr.utbm.sudoku.model.Algorithms
 import fr.utbm.sudoku.model.RegionTypeEnum
 import fr.utbm.sudoku.model.Sudoku
 import io.sarl.lang.core.EventSpace
 import java.util.List
 import java.util.UUID
-import fr.utbm.sudoku.model.Algorithms
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -23,6 +23,10 @@ event SubmitSudoku {
 
 event SpawnRequired {
 	var controller : GridController
+}
+
+event EcoResolve{
+	
 }
 
 event Aggression{
@@ -65,6 +69,8 @@ event SolutionFound{
 	var x : Integer
 	var y : Integer
 }
+
+event StopResolve
 
 event NewSolutionFound {
 	var solution : Integer
@@ -111,6 +117,7 @@ event Algos {
 
 event Values{
 	var values : List<Integer>
+	var type : RegionTypeEnum
 }
 
 event AskForCandidate{

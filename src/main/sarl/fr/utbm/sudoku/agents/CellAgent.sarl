@@ -3,6 +3,7 @@
  */
 package fr.utbm.sudoku.agents
 
+import fr.utbm.sudoku.behaviors.EcoResolutionBehavior
 import fr.utbm.sudoku.behaviors.HiddenSingletonSeekingBehavior
 import fr.utbm.sudoku.behaviors.NudeSingletonSeekingBehavior
 import fr.utbm.sudoku.capacities.SudokuBaseCommunication
@@ -10,11 +11,13 @@ import fr.utbm.sudoku.capacities.SudokuCommunication
 import fr.utbm.sudoku.capacities.SudokuMaths
 import fr.utbm.sudoku.capacities.SudokuMathsBaseSkill
 import fr.utbm.sudoku.events.Algos
+import fr.utbm.sudoku.events.EcoResolve
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.Position
 import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
+import fr.utbm.sudoku.events.StopResolve
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.Values
 import fr.utbm.sudoku.model.Algorithms
@@ -30,8 +33,11 @@ import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.lang.core.EventSpace
 import io.sarl.util.Scopes
+import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
+import java.util.Set
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.ReentrantLock
 
@@ -40,7 +46,7 @@ import java.util.concurrent.locks.ReentrantLock
  * 
  */
 agent CellAgent {
-	uses Logging, ExternalContextAccess, DefaultContextInteractions, SudokuMaths, Behaviors, Lifecycle
+	uses Logging, ExternalContextAccess, DefaultContextInteractions, SudokuMaths, Behaviors, Lifecycle, SudokuCommunication
 
 	var x : Integer
 	var y : Integer
@@ -53,7 +59,11 @@ agent CellAgent {
 	var nudeSingletonBehavior : NudeSingletonSeekingBehavior
 	var hiddenSingletonBehavior : HiddenSingletonSeekingBehavior
 	var candidatesLock = new ReentrantLock
-	var nbValuesReceivedLock = new ReentrantLock	
+	var nbValuesReceivedLock = new ReentrantLock
+	var regionValues = new ConcurrentHashMap<RegionTypeEnum, Set<Integer>>
+	var commSkill : SudokuBaseCommunication
+	var resolving = true
+	var ecoResolveBehavior : EcoResolutionBehavior
 
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -68,11 +78,14 @@ agent CellAgent {
 		spaces.put(RegionTypeEnum.BLOC, defaultSpace)
 		spaces.put(RegionTypeEnum.LIGNE, rowCtxId.^space)
 		spaces.put(RegionTypeEnum.COLONNE, colCtxId.^space)
+		for (v : RegionTypeEnum.values) {
+			regionValues.put(v, new HashSet())
+		}		
 		setSkill(new SudokuMathsBaseSkill(values), SudokuMaths)
-		var commSkill = new SudokuBaseCommunication(x, y, spaces)
+		commSkill = new SudokuBaseCommunication(x, y, spaces)
 		setSkill(commSkill, SudokuCommunication)
-		nudeSingletonBehavior = new NudeSingletonSeekingBehavior(this, candidates, commSkill)
-		hiddenSingletonBehavior = new HiddenSingletonSeekingBehavior(this, candidates, commSkill)	
+		nudeSingletonBehavior = new NudeSingletonSeekingBehavior(this, candidates, commSkill, regionValues)
+		hiddenSingletonBehavior = new HiddenSingletonSeekingBehavior(this, candidates, commSkill, regionValues)	
 	}
 	
 	on Algos {
@@ -102,6 +115,7 @@ agent CellAgent {
 	}
 
 	on Values {
+		regionValues.get(occurrence.type).addAll(values)
 		nbValuesReceivedLock.lock
 		values.addAll(occurrence.values)
 		nbValuesReceived++
@@ -123,6 +137,9 @@ agent CellAgent {
 		!isFromMe &&
 		!values.contains(occurrence.solution)
 	] {
+		for(v : determineRegion(occurrence.x,occurrence.y)){
+			regionValues.get(v).add(occurrence.solution)
+		}
 		values.add(occurrence.solution)
 		candidatesLock.lock
 		if (candidates.contains(occurrence.solution)) {
@@ -130,10 +147,30 @@ agent CellAgent {
 		}
 		candidatesLock.unlock
 	}
+	
+	on EcoResolve [resolving]{
+		var values = new ArrayList<Integer>
+		for (key : regionValues.keySet){
+			values.addAll(regionValues.get(key))
+		}
+		ecoResolveBehavior = new EcoResolutionBehavior(this, values, commSkill)
+		unregisterBehavior(nudeSingletonBehavior)
+		unregisterBehavior(hiddenSingletonBehavior)
+		ecoResolveBehavior.registerBehavior
+	}
+	
+	on EcoResolve[!resolving]{
+		killMe
+	}
+	
+	on StopResolve{
+		resolving = false
+	}
 
 	on Destroy {
 		unregisterBehavior(nudeSingletonBehavior)
 		unregisterBehavior(hiddenSingletonBehavior)
+		unregisterBehavior(ecoResolveBehavior)
 	}
 	
 	on Exit{

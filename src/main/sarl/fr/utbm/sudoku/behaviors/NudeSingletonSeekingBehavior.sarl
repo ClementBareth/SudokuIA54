@@ -8,8 +8,13 @@ import fr.utbm.sudoku.capacities.SudokuCommunication
 import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
+import fr.utbm.sudoku.events.StopResolve
+import fr.utbm.sudoku.model.RegionTypeEnum
+import io.sarl.core.Behaviors
 import io.sarl.core.Initialize
 import io.sarl.lang.core.Agent
+import java.util.Set
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /** 
@@ -17,16 +22,19 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * 
  */
 behavior NudeSingletonSeekingBehavior {
-	uses SudokuCommunication
+	uses SudokuCommunication, Behaviors
 	
 	var resolving = true
 	var candidates : ConcurrentLinkedQueue<Integer>
 	var communicationSkill : SudokuBaseCommunication
-	
-	new (a : Agent, c : ConcurrentLinkedQueue<Integer>, s : SudokuBaseCommunication) {
+	var regionValues = new ConcurrentHashMap<RegionTypeEnum, Set<Integer>>
+
+	new (a : Agent, c : ConcurrentLinkedQueue<Integer>, s : SudokuBaseCommunication,
+		rv : ConcurrentHashMap<RegionTypeEnum, Set<Integer>>) {
 		super(a)
 		this.candidates = c
 		this.communicationSkill = s
+		this.regionValues = rv;
 	}
 
 	on Resolve [resolving]{
@@ -48,7 +56,12 @@ behavior NudeSingletonSeekingBehavior {
 	def seekSolution() {
 		if (resolving && candidates.size == 1) {
 			resolving = false
-			emitToAllHolons(new SolutionFound => [solution = candidates.poll; x = getX; y = getY])
+			wake(new StopResolve)
+			val c = candidates.poll
+			for(v : RegionTypeEnum.values){
+				regionValues.get(v).add(c)
+			}
+			emitToAllHolons(new SolutionFound => [solution = c; x = getX; y = getY])
 		}
 	}
 	

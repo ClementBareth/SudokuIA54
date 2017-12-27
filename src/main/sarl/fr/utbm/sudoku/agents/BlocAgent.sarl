@@ -27,6 +27,7 @@ import java.util.List
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
+import fr.utbm.sudoku.model.RegionTypeEnum
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -64,7 +65,7 @@ agent BlocAgent {
 	}
 
 	on Resolve [!it.isFrom(ID)] {
-		wake(new Values => [values = blocValues])
+		wake(new Values => [values = blocValues; type = RegionTypeEnum.BLOC])
 		wake(new Algos => [algos = occurrence.algos])
 	}
 

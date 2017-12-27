@@ -7,6 +7,8 @@ import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.ExternalContextAccess
 import io.sarl.lang.core.Event
 import io.sarl.lang.core.EventSpace
+import java.util.ArrayList
+import java.util.List
 import java.util.Map
 
 /** 
@@ -21,12 +23,13 @@ capacity SudokuCommunication {
 	def getY : Integer
 	def getSpaces : Map<RegionTypeEnum, EventSpace>
 	def isFromMeInOtherHolon(e:Event):boolean
+	def determineRegion(x1 : Integer, y1 : Integer): List<RegionTypeEnum>
 }
 
 skill SudokuBaseCommunication implements SudokuCommunication {
 	uses ExternalContextAccess
 	
-	var spaces : Map<RegionTypeEnum,EventSpace>
+	var spaces : Map<RegionTypeEnum, EventSpace>
 	var x : Integer
 	var y: Integer
 	
@@ -66,5 +69,17 @@ skill SudokuBaseCommunication implements SudokuCommunication {
 			!e.isFrom(spaces.get(RegionTypeEnum.LIGNE).getAddress(ID)) &&
 			!e.isFrom(spaces.get(RegionTypeEnum.COLONNE).getAddress(ID))	
 		)
+	}
+
+	def determineRegion(x1 : Integer, y1 : Integer) : List<RegionTypeEnum> {
+		var regions = new ArrayList<RegionTypeEnum>
+		if(x1 == x) regions.add(RegionTypeEnum.LIGNE)
+		if(y1 == y) regions.add(RegionTypeEnum.COLONNE)
+		var row = x / 3 as Integer
+		var col = y / 3 as Integer
+		var solRow = x1 / 3 as Integer
+		var solCol = y1 / 3 as Integer
+		if(row == solRow && col == solCol) regions.add(RegionTypeEnum.BLOC)
+		return regions
 	}
 }

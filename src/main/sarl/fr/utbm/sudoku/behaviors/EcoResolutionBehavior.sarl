@@ -14,7 +14,6 @@ import java.util.Collections
 import java.util.HashMap
 import java.util.List
 import java.util.Map
-import java.util.concurrent.ConcurrentLinkedQueue
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -24,15 +23,15 @@ behavior EcoResolutionBehavior {
 
 	uses SudokuCommunication, Logging
 
-	var sudokuCommunicationSkill : SudokuBaseCommunication
-	var values : ConcurrentLinkedQueue<Integer>
-	var actualValue = new Integer(0)
+	var private sudokuCommunicationSkill : SudokuBaseCommunication
+	var private values : ArrayList<Integer>
+	var private actualValue = new Integer(0)
 
 	on Initialize {
 		setSkill(sudokuCommunicationSkill, SudokuCommunication)
 	}
 
-	new(^agent : Agent, values : ConcurrentLinkedQueue<Integer>, s : SudokuBaseCommunication) {
+	new(^agent : Agent, values : ArrayList<Integer>, s : SudokuBaseCommunication) {
 		super(^agent)
 		this.values = values
 		this.sudokuCommunicationSkill = s
