@@ -12,8 +12,11 @@ import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
+import fr.utbm.sudoku.events.UpdateSudoku
 import fr.utbm.sudoku.events.Values
+import fr.utbm.sudoku.model.Algorithms
 import fr.utbm.sudoku.model.ContextContainer
+import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
@@ -21,30 +24,33 @@ import io.sarl.core.InnerContextAccess
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.core.MemberLeft
+import io.sarl.core.Schedules
 import io.sarl.util.Scopes
+import java.util.ArrayList
 import java.util.Collections
 import java.util.List
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
-import fr.utbm.sudoku.model.RegionTypeEnum
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
  */
 agent BlocAgent {
-	uses Logging, InnerContextAccess, Lifecycle, Behaviors, DefaultContextInteractions
+	uses Logging, InnerContextAccess, Lifecycle, Behaviors, DefaultContextInteractions, Schedules
 
 	var startRow : Integer
 	var startCol : Integer
 	var blocValues : List<Integer>
 	var rowCtxIds : ConcurrentHashMap<Integer, ContextContainer>
 	var colCtxIds : ConcurrentHashMap<Integer, ContextContainer>
-	val agents = new ConcurrentHashMap<Integer, UUID>
+	val agents = new ArrayList<UUID>
 	var valuesLock = new ReentrantLock
 	var tokens = new ConcurrentHashMap<UUID, Integer>
 	var agentResolving : UUID = null
+	var nbTokenReleased = 0
+	var expectedTokens : Integer
 
 	on Initialize {
 		if (occurrence.parameters.length >= 5) {
@@ -59,17 +65,26 @@ agent BlocAgent {
 			if (blocValues.get(i) === null || blocValues.get(i) == 0) {
 				var row = startRow + i / 3 as Integer
 				var col = startCol + i % 3
-				agents.put(i, CellAgent.spawnInContext(innerContext, rowCtxIds.get(row), colCtxIds.get(col), row, col))
+				agents.add(CellAgent.spawnInContext(innerContext, rowCtxIds.get(row), colCtxIds.get(col), row, col))
 			}
 		}
 	}
 
 	on Resolve [!it.isFrom(ID)] {
 		wake(new Values => [values = blocValues; type = RegionTypeEnum.BLOC])
+		if (occurrence.algos.contains(Algorithms.ECO_RESOLUTION) &&
+			occurrence.algos.contains(Algorithms.HIDDEN_SINGLETONS)) {
+			expectedTokens = 2
+		} else if (occurrence.algos.contains(Algorithms.ECO_RESOLUTION) ||
+			occurrence.algos.contains(Algorithms.HIDDEN_SINGLETONS)) {
+			expectedTokens = 1
+		}
 		wake(new Algos => [algos = occurrence.algos])
 	}
 
 	on SolutionFound {
+		agents.remove(occurrence.source.UUID)
+		tokens.remove(occurrence.source.UUID)
 		valuesLock.lock
 		if (!blocValues.contains(occurrence.solution)) {
 			blocValues.add(occurrence.solution)
@@ -79,9 +94,13 @@ agent BlocAgent {
 			valuesLock.unlock
 		}
 	}
-	
+
 	on Aggression {
 		emit(new SolutionFoundInBloc => [solution = occurrence.value; x = occurrence.x; y = occurrence.y])
+	}
+	
+	on UpdateSudoku {
+		emit(new UpdateSudoku => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y])
 	}
 
 	on Exit {
@@ -106,22 +125,36 @@ agent BlocAgent {
 	 * Envois du token à l'agent concerné
 	 */
 	def sendToken(id : UUID) {
-		agentResolving = id;
-		wake(
-			new TokenReceived,
-			Scopes.addresses(innerContext.defaultSpace.getAddress(id))
-		)
+		in(10) [
+			agentResolving = id;
+			wake(
+				new TokenReceived,
+				Scopes.addresses(innerContext.defaultSpace.getAddress(id))
+			)
+
+		]
 	}
 	/** 
 	 * Le token a été relâché par l'agent qui l'avait
 	 */
-	on TokenReleased {
-		var nb = tokens.get(occurrence.source.UUID)
-		if (nb !== null) {
-			nb++
-			tokens.put(occurrence.source.UUID, nb)
+	on TokenReleased [occurrence.source.UUID == agentResolving] {
+		nbTokenReleased++
+		if (this.nbTokenReleased == expectedTokens) {
+			nbTokenReleased = 0
+			var nb = tokens.get(occurrence.source.UUID)
+			if (nb !== null) {
+				nb++
+				tokens.put(occurrence.source.UUID, nb)
+			}
+			if (tokens.size > 0) {
+				sendToken(determineAgentToReceiveToken)
+			}
 		}
-		if(tokens.size > 0) sendToken(determineAgentToReceiveToken)
+	}
+	
+	on TokenReleased [occurrence.done]{
+		tokens.remove(occurrence.source.UUID)
+		agents.remove(occurrence.source.UUID)
 	}
 	/** 
 	 * L'agent est initialisé
@@ -133,9 +166,4 @@ agent BlocAgent {
 			sendToken(occurrence.source.UUID)
 		}
 	}
-
-	on SolutionFound {
-		tokens.remove(occurrence.source.UUID)
-	}
-
 }

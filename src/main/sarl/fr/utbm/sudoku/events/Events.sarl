@@ -21,13 +21,21 @@ event SubmitSudoku {
 	var sudoku : Sudoku
 }
 
+event EcoValue {
+	var value : Integer
+	var x : Integer
+	var y : Integer
+}
+
 event SpawnRequired {
 	var controller : GridController
 }
 
 event EcoResolve{
-	
+	var init : boolean
 }
+
+event ReadyForEcoResolve
 
 event Aggression{
 	var value : Integer
@@ -37,7 +45,9 @@ event Aggression{
 
 event TokenReceived 
 
-event TokenReleased
+event TokenReleased{
+	var done : boolean
+}
 
 event RegionAgentInitialized {
 	var id : UUID

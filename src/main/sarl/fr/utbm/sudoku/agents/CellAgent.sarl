@@ -11,11 +11,9 @@ import fr.utbm.sudoku.capacities.SudokuCommunication
 import fr.utbm.sudoku.capacities.SudokuMaths
 import fr.utbm.sudoku.capacities.SudokuMathsBaseSkill
 import fr.utbm.sudoku.events.Algos
-import fr.utbm.sudoku.events.EcoResolve
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.Position
 import fr.utbm.sudoku.events.ReadyToResolve
-import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.StopResolve
 import fr.utbm.sudoku.events.TokenReceived
@@ -36,8 +34,6 @@ import io.sarl.util.Scopes
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
-import java.util.Set
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.ReentrantLock
 
@@ -60,10 +56,10 @@ agent CellAgent {
 	var hiddenSingletonBehavior : HiddenSingletonSeekingBehavior
 	var candidatesLock = new ReentrantLock
 	var nbValuesReceivedLock = new ReentrantLock
-	var regionValues = new ConcurrentHashMap<RegionTypeEnum, Set<Integer>>
 	var commSkill : SudokuBaseCommunication
 	var resolving = true
 	var ecoResolveBehavior : EcoResolutionBehavior
+	var algos = new ArrayList<Algorithms>
 
 	on Initialize {
 		if (occurrence.parameters.length >= 4) {
@@ -78,20 +74,24 @@ agent CellAgent {
 		spaces.put(RegionTypeEnum.BLOC, defaultSpace)
 		spaces.put(RegionTypeEnum.LIGNE, rowCtxId.^space)
 		spaces.put(RegionTypeEnum.COLONNE, colCtxId.^space)
-		for (v : RegionTypeEnum.values) {
-			regionValues.put(v, new HashSet())
-		}		
 		setSkill(new SudokuMathsBaseSkill(values), SudokuMaths)
 		commSkill = new SudokuBaseCommunication(x, y, spaces)
 		setSkill(commSkill, SudokuCommunication)
-		nudeSingletonBehavior = new NudeSingletonSeekingBehavior(this, candidates, commSkill, regionValues)
-		hiddenSingletonBehavior = new HiddenSingletonSeekingBehavior(this, candidates, commSkill, regionValues)	
+		nudeSingletonBehavior = new NudeSingletonSeekingBehavior(this, candidates, commSkill)
+		hiddenSingletonBehavior = new HiddenSingletonSeekingBehavior(this, candidates, commSkill)
+		ecoResolveBehavior = new EcoResolutionBehavior(this, candidates, commSkill)
 	}
-	
+
 	on Algos {
-		if(occurrence.algos.contains(Algorithms.NUDE_SINGLETONS)) registerBehavior(nudeSingletonBehavior)
-		if(occurrence.algos.contains(Algorithms.HIDDEN_SINGLETONS)) {
-			registerBehavior(hiddenSingletonBehavior)		
+		this.algos.addAll(occurrence.algos)
+		if (occurrence.algos.contains(Algorithms.NUDE_SINGLETONS)) {
+			registerBehavior(nudeSingletonBehavior)
+		} 
+		if (occurrence.algos.contains(Algorithms.HIDDEN_SINGLETONS)) {
+			registerBehavior(hiddenSingletonBehavior)
+		}
+		if (occurrence.algos.contains(Algorithms.ECO_RESOLUTION)) {
+			registerBehavior(ecoResolveBehavior)
 		}
 	}
 
@@ -110,16 +110,12 @@ agent CellAgent {
 		}
 	}
 
-	on TokenReceived {
-		wake(new Resolve)
-	}
-
 	on Values {
-		regionValues.get(occurrence.type).addAll(values)
 		nbValuesReceivedLock.lock
 		values.addAll(occurrence.values)
 		nbValuesReceived++
 		if (nbValuesReceived == 3) {
+			values.remove(null)
 			nbValuesReceivedLock.unlock
 			candidatesLock.lock
 			candidates.addAll(evaluateCandidates)
@@ -133,13 +129,7 @@ agent CellAgent {
 	/** 
 	 * Une solution a été trouvée dans un holon de l'agent
 	 */
-	on SolutionFound [
-		!isFromMe &&
-		!values.contains(occurrence.solution)
-	] {
-		for(v : determineRegion(occurrence.x,occurrence.y)){
-			regionValues.get(v).add(occurrence.solution)
-		}
+	on SolutionFound [!isFromMe && !values.contains(occurrence.solution)] {
 		values.add(occurrence.solution)
 		candidatesLock.lock
 		if (candidates.contains(occurrence.solution)) {
@@ -147,33 +137,24 @@ agent CellAgent {
 		}
 		candidatesLock.unlock
 	}
-	
-	on EcoResolve [resolving]{
-		var values = new ArrayList<Integer>
-		for (key : regionValues.keySet){
-			values.addAll(regionValues.get(key))
-		}
-		ecoResolveBehavior = new EcoResolutionBehavior(this, values, commSkill)
-		unregisterBehavior(nudeSingletonBehavior)
-		unregisterBehavior(hiddenSingletonBehavior)
-		ecoResolveBehavior.registerBehavior
-	}
-	
-	on EcoResolve[!resolving]{
-		killMe
-	}
-	
-	on StopResolve{
+
+	on StopResolve {
 		resolving = false
 	}
 
 	on Destroy {
-		unregisterBehavior(nudeSingletonBehavior)
-		unregisterBehavior(hiddenSingletonBehavior)
-		unregisterBehavior(ecoResolveBehavior)
+		if (algos.contains(Algorithms.NUDE_SINGLETONS)) {
+			unregisterBehavior(nudeSingletonBehavior)
+		}
+		if (algos.contains(Algorithms.HIDDEN_SINGLETONS)) {
+			unregisterBehavior(hiddenSingletonBehavior)
+		}
+		if (algos.contains(Algorithms.ECO_RESOLUTION))
+			unregisterBehavior(ecoResolveBehavior)
 	}
-	
-	on Exit{
+
+	on Exit {
 		killMe
 	}
+
 }

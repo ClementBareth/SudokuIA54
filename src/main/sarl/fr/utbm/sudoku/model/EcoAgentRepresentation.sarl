@@ -1,0 +1,33 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.model
+
+import java.util.List
+import java.util.UUID
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+class EcoAgentRepresentation {
+	var id : UUID
+	var regions : List<RegionTypeEnum>
+
+	new (id : UUID, regions : List<RegionTypeEnum>) {
+		this.id = id
+		this.regions = regions
+	}
+
+	def getId() {
+		id
+	}
+
+	def getRegions() {
+		regions
+	}
+	
+	def equals(e : EcoAgentRepresentation){
+		return (id.equals(e.id) && regions.equals(e.regions))
+	}
+}

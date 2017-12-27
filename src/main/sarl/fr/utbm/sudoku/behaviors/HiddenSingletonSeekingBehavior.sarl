@@ -41,15 +41,12 @@ behavior HiddenSingletonSeekingBehavior {
 	var scanQueue = new ConcurrentLinkedQueue<ScanCommand>
 	var scanCommand : ScanCommand
 	var scanCommandLock = new ReentrantLock
-	var regionValues = new ConcurrentHashMap<RegionTypeEnum, Set<Integer>>
 	
 
-	new (a : Agent, c : ConcurrentLinkedQueue<Integer>, s : SudokuBaseCommunication,
-		rv : ConcurrentHashMap<RegionTypeEnum, Set<Integer>>) {
+	new (a : Agent, c : ConcurrentLinkedQueue<Integer>, s : SudokuBaseCommunication) {
 		super(a)
 		this.candidates = c
 		this.sudokuCommunicationSkill = s
-		this.regionValues = rv;
 	}
 
 	on Initialize {
@@ -130,9 +127,6 @@ behavior HiddenSingletonSeekingBehavior {
 				resolving = false
 				wake(new StopResolve)
 				candidates.clear
-				for (v : RegionTypeEnum.values) {
-					regionValues.get(v).add(candidate)
-				}
 				emitToAllHolons(new SolutionFound => [solution = candidate; x = getX; y = getY])
 				relaseToken
 			}

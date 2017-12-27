@@ -5,8 +5,10 @@ package fr.utbm.sudoku.capacities
 
 import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.ExternalContextAccess
+import io.sarl.lang.core.Address
 import io.sarl.lang.core.Event
 import io.sarl.lang.core.EventSpace
+import io.sarl.lang.core.Scope
 import java.util.ArrayList
 import java.util.List
 import java.util.Map
@@ -16,24 +18,32 @@ import java.util.Map
  * 
  */
 capacity SudokuCommunication {
-	
-	def emitToAllHolons(e:Event)
-	def emitToHolon(e:Event,type:RegionTypeEnum)
+
+	def emitToAllHolons(e : Event)
+
+	def emitToHolon(e : Event, type : RegionTypeEnum, scope : Scope<Address> = null)
+
 	def getX : Integer
+
 	def getY : Integer
+
 	def getSpaces : Map<RegionTypeEnum, EventSpace>
-	def isFromMeInOtherHolon(e:Event):boolean
-	def determineRegion(x1 : Integer, y1 : Integer): List<RegionTypeEnum>
+
+	def isFromMeInOtherHolon(e : Event) : boolean
+
+	def determineRegion(x1 : Integer, y1 : Integer) : List<RegionTypeEnum>
+
+	def determineHolon(e : Event) : RegionTypeEnum
 }
 
 skill SudokuBaseCommunication implements SudokuCommunication {
 	uses ExternalContextAccess
-	
+
 	var spaces : Map<RegionTypeEnum, EventSpace>
 	var x : Integer
-	var y: Integer
-	
-	new (x : Integer, y : Integer, s : Map<RegionTypeEnum, EventSpace>){
+	var y : Integer
+
+	new (x : Integer, y : Integer, s : Map<RegionTypeEnum, EventSpace>) {
 		this.x = x;
 		this.y = y;
 		this.spaces = s;
@@ -45,24 +55,24 @@ skill SudokuBaseCommunication implements SudokuCommunication {
 		e.emitToHolon(RegionTypeEnum.COLONNE)
 	}
 
-	def emitToHolon(e : Event, type : RegionTypeEnum) {
+	def emitToHolon(e : Event, type : RegionTypeEnum, scope : Scope<Address> = null ) {
 		var ^space = spaces.get(type)
 		e.source = ^space.getAddress(ID)
-		^space.emit(e)
+		^space.emit(e, scope)
 	}
-	
-	def getX : Integer{
+
+	def getX : Integer {
 		return x
 	}
-	
-	def getY : Integer{
+
+	def getY : Integer {
 		return y
 	}
-	
-	def getSpaces : Map<RegionTypeEnum,EventSpace>{
+
+	def getSpaces : Map<RegionTypeEnum, EventSpace> {
 		return spaces
 	}
-	
+
 	def isFromMeInOtherHolon(e : Event) : boolean {
 		return (
 			!e.isFrom(spaces.get(RegionTypeEnum.BLOC).getAddress(ID)) &&
@@ -81,5 +91,11 @@ skill SudokuBaseCommunication implements SudokuCommunication {
 		var solCol = y1 / 3 as Integer
 		if(row == solRow && col == solCol) regions.add(RegionTypeEnum.BLOC)
 		return regions
+	}
+
+	def determineHolon(e : Event) : RegionTypeEnum {
+		for (sp : spaces.entrySet) {
+			if(e.isInSpace(sp.value)) return sp.key
+		}
 	}
 }

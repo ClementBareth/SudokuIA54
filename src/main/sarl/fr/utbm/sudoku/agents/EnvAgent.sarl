@@ -5,7 +5,9 @@ package fr.utbm.sudoku.agents
 
 import fr.utbm.sudoku.SudokuApplication
 import fr.utbm.sudoku.controllers.GridController
+import fr.utbm.sudoku.events.EcoResolve
 import fr.utbm.sudoku.events.Exit
+import fr.utbm.sudoku.events.ReadyForEcoResolve
 import fr.utbm.sudoku.events.RegionAgentInitialized
 import fr.utbm.sudoku.events.RegionAgentSpawned
 import fr.utbm.sudoku.events.Resolve
@@ -14,6 +16,7 @@ import fr.utbm.sudoku.events.RowAndColSpawned
 import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.SpawnRequired
 import fr.utbm.sudoku.events.UpdateSudoku
+import fr.utbm.sudoku.model.Algorithms
 import fr.utbm.sudoku.model.ContextContainer
 import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.Behaviors
@@ -41,6 +44,7 @@ agent EnvAgent {
 
 	var rowInit = new Integer(0);
 	var colInit = new Integer(0);
+	var ecoResolveCountDown = 9;
 
 	on Initialize {
 		if (occurrence.parameters.length >= 2) {
@@ -87,23 +91,26 @@ agent EnvAgent {
 			wake(new RowAndColSpawned)
 		}
 	}
-	
-	on RegionAgentInitialized{		
-		if(occurrence.type.equals(RegionTypeEnum.LIGNE)){
-			rowInit ++ 
-		}		
-		if(occurrence.type.equals(RegionTypeEnum.LIGNE)){
-			colInit ++ 
+
+	on RegionAgentInitialized {
+		if (occurrence.type.equals(RegionTypeEnum.LIGNE)) {
+			rowInit++
+		}
+		if (occurrence.type.equals(RegionTypeEnum.LIGNE)) {
+			colInit++
 		}
 		var rows = rowInit
-		var cols = colInit		
-		if (rows.equals(9) && cols.equals(9)){
+		var cols = colInit
+		if (rows.equals(9) && cols.equals(9)) {
 			wake(new RowAndColInit)
 		}
 	}
 
 	on Resolve [!isFromMe] {
 		emit(new Resolve => [algos = occurrence.algos])
+		if (occurrence.algos.size == 1 && occurrence.algos.contains(Algorithms.ECO_RESOLUTION)) {
+			emit(new EcoResolve) 
+		}
 	}
 
 	on RowAndColInit {
@@ -115,6 +122,21 @@ agent EnvAgent {
 			new UpdateSudoku => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y]
 		)
 	}
+
+	on UpdateSudoku {
+		openSpace.emit(new UpdateSudoku => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y])
+	}
+	
+
+	on ReadyForEcoResolve {
+		ecoResolveCountDown--
+		if (ecoResolveCountDown == 0) {
+			emit(new EcoResolve)
+			info("Start Eco Resolution")
+		}
+	}
+	
+	
 
 	on Exit [!isFromMe] {
 		emit(new Exit)

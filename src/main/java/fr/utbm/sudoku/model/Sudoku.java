@@ -40,7 +40,8 @@ public class Sudoku {
 	public List<Integer> getRow(int rowNum) {
 		ArrayList<Integer> row = new ArrayList<>();
 		for (int i = 0; i < 9; i++) {
-			row.add(this.matrix[i][rowNum]);
+			Integer v = this.matrix[i][rowNum];
+			row.add(v);
 		}
 		return row;
 	}
@@ -48,7 +49,8 @@ public class Sudoku {
 	public List<Integer> getColumn(int colNum) {
 		ArrayList<Integer> col = new ArrayList<>();
 		for (int i = 0; i < 9; i++) {
-			col.add(this.matrix[colNum][i]);
+			Integer v = this.matrix[colNum][i];
+			col.add(v);
 		}
 		return col;
 	}
@@ -57,7 +59,8 @@ public class Sudoku {
 		ArrayList<Integer> region = new ArrayList<>();
 		for (int i = rowStart; i <= rowEnd; i++) {
 			for (int j = colStart; j <= colEnd; j++) {
-				region.add(this.matrix[j][i]);
+				Integer v = this.matrix[j][i];
+				region.add(v);
 			}
 		}
 		return region;
