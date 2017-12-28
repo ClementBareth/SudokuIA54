@@ -59,7 +59,7 @@ agent RowAndColAgent {
 	}
 
 	on Resolve [!isFromMe] {
-		wake(new Values => [values = this.values; type = this.agentType])
+		wake(new Values => [values = this.values; type = this.agentType; it.agents = this.agents.values.toSet])
 	}
 
 	on Position {

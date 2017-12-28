@@ -5,9 +5,9 @@ package fr.utbm.sudoku.behaviors
 
 import fr.utbm.sudoku.capacities.SudokuBaseCommunication
 import fr.utbm.sudoku.capacities.SudokuCommunication
-import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
+import fr.utbm.sudoku.events.StartResolve
 import fr.utbm.sudoku.events.StopResolve
 import io.sarl.core.Behaviors
 import io.sarl.core.Initialize
@@ -39,7 +39,7 @@ behavior NudeSingletonSeekingBehavior {
 		seekSolution
 	}
 	
-	on ReadyToResolve{
+	on StartResolve [isFromMe] {
 		seekSolution
 	}
 

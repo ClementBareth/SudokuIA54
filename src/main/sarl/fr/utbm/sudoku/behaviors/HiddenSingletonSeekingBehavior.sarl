@@ -7,8 +7,8 @@ import fr.utbm.sudoku.capacities.SudokuBaseCommunication
 import fr.utbm.sudoku.capacities.SudokuCommunication
 import fr.utbm.sudoku.events.AnswerForCandidate
 import fr.utbm.sudoku.events.AskForCandidate
-import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.SolutionFound
+import fr.utbm.sudoku.events.StartResolve
 import fr.utbm.sudoku.events.StopResolve
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
@@ -21,8 +21,6 @@ import io.sarl.core.Initialize
 import io.sarl.lang.core.Agent
 import io.sarl.util.Scopes
 import java.util.ArrayList
-import java.util.Set
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.ReentrantLock
 
@@ -62,7 +60,7 @@ behavior HiddenSingletonSeekingBehavior {
 		emit(new TokenReleased)
 	}
 
-	on ReadyToResolve {
+	on StartResolve [isFromMe] {
 		for (c : candidates) {
 			for (type : RegionTypeEnum.values) {
 				var scanCommand = new ScanCommand => [

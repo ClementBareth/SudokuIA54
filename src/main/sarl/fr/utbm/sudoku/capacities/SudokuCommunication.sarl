@@ -12,6 +12,7 @@ import io.sarl.lang.core.Scope
 import java.util.ArrayList
 import java.util.List
 import java.util.Map
+import java.util.UUID
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -34,6 +35,8 @@ capacity SudokuCommunication {
 	def determineRegion(x1 : Integer, y1 : Integer) : List<RegionTypeEnum>
 
 	def determineHolon(e : Event) : RegionTypeEnum
+	
+	def getHolon(id : UUID) : RegionTypeEnum
 }
 
 skill SudokuBaseCommunication implements SudokuCommunication {
@@ -96,6 +99,12 @@ skill SudokuBaseCommunication implements SudokuCommunication {
 	def determineHolon(e : Event) : RegionTypeEnum {
 		for (sp : spaces.entrySet) {
 			if(e.isInSpace(sp.value)) return sp.key
+		}
+	}
+	
+	def getHolon(id : UUID) : RegionTypeEnum {
+		for (sp : spaces.entrySet) {
+			if(sp.value.participants.contains(id)) return sp.key
 		}
 	}
 }

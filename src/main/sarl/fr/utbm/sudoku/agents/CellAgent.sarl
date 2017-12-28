@@ -15,8 +15,8 @@ import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.Position
 import fr.utbm.sudoku.events.ReadyToResolve
 import fr.utbm.sudoku.events.SolutionFound
+import fr.utbm.sudoku.events.StartResolve
 import fr.utbm.sudoku.events.StopResolve
-import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.Values
 import fr.utbm.sudoku.model.Algorithms
 import fr.utbm.sudoku.model.ContextContainer
@@ -34,6 +34,7 @@ import io.sarl.util.Scopes
 import java.util.ArrayList
 import java.util.HashMap
 import java.util.HashSet
+import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.ReentrantLock
 
@@ -59,6 +60,7 @@ agent CellAgent {
 	var commSkill : SudokuBaseCommunication
 	var resolving = true
 	var ecoResolveBehavior : EcoResolutionBehavior
+	val agents = new HashSet<UUID>
 	var algos = new ArrayList<Algorithms>
 
 	on Initialize {
@@ -111,6 +113,7 @@ agent CellAgent {
 	}
 
 	on Values {
+		agents.addAll(occurrence.agents)
 		nbValuesReceivedLock.lock
 		values.addAll(occurrence.values)
 		nbValuesReceived++
@@ -121,7 +124,7 @@ agent CellAgent {
 			candidates.addAll(evaluateCandidates)
 			candidatesLock.unlock
 			emit(new ReadyToResolve)
-			wake(new ReadyToResolve)
+			wake(new StartResolve => [it.agents = this.agents])
 		} else {
 			nbValuesReceivedLock.unlock
 		}

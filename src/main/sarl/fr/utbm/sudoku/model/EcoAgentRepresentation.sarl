@@ -27,7 +27,20 @@ class EcoAgentRepresentation {
 		regions
 	}
 	
+	def private hasOneRegionCommon(l : List<RegionTypeEnum>) : boolean{
+		for(elem : l){
+			if (regions.contains(elem)) return true
+		}
+		return false
+	}
+	
 	def equals(e : EcoAgentRepresentation){
-		return (id.equals(e.id) && regions.equals(e.regions))
+		return (
+			id.equals(e.id) && hasOneRegionCommon(e.regions)
+		)
+	}
+	
+	def toString : String{
+		return "Id : "+id+" ; Regions : "+regions
 	}
 }

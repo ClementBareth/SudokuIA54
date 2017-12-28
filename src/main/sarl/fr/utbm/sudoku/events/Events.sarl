@@ -5,10 +5,12 @@ package fr.utbm.sudoku.events
 
 import fr.utbm.sudoku.controllers.GridController
 import fr.utbm.sudoku.model.Algorithms
+import fr.utbm.sudoku.model.EcoAgentRepresentation
 import fr.utbm.sudoku.model.RegionTypeEnum
 import fr.utbm.sudoku.model.Sudoku
 import io.sarl.lang.core.EventSpace
 import java.util.List
+import java.util.Set
 import java.util.UUID
 
 /** 
@@ -114,7 +116,12 @@ event UpdateSudoku {
 	var y : Integer
 }
 
-event ReadyToResolve
+event ReadyToResolve{
+}
+
+event StartResolve {
+	var agents : Set<UUID>
+}
 
 event Resolve{
 	var values : List<Integer>
@@ -128,6 +135,7 @@ event Algos {
 event Values{
 	var values : List<Integer>
 	var type : RegionTypeEnum
+	var agents : Set<UUID>
 }
 
 event AskForCandidate{

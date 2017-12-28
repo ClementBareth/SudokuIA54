@@ -7,10 +7,9 @@ import fr.utbm.sudoku.capacities.SudokuBaseCommunication
 import fr.utbm.sudoku.capacities.SudokuCommunication
 import fr.utbm.sudoku.events.Aggression
 import fr.utbm.sudoku.events.EcoValue
-import fr.utbm.sudoku.events.ReadyToResolve
+import fr.utbm.sudoku.events.StartResolve
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
-import fr.utbm.sudoku.model.EcoAgentRepresentation
 import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
@@ -23,6 +22,7 @@ import java.util.Collections
 import java.util.HashMap
 import java.util.List
 import java.util.Map
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -37,7 +37,7 @@ behavior EcoResolutionBehavior {
 	var private sudokuCommunicationSkill : SudokuBaseCommunication
 	var private candidates : ConcurrentLinkedQueue<Integer>
 	var private actualValue = new Integer(0)
-	var agentsValues = new ConcurrentHashMap<EcoAgentRepresentation, Integer>
+	var agentsValues = new ConcurrentHashMap<UUID, Integer>
 
 	on Initialize {
 		setSkill(sudokuCommunicationSkill, SudokuCommunication)
@@ -50,48 +50,45 @@ behavior EcoResolutionBehavior {
 	}
 
 	on EcoValue {
-		// var regions = determineRegion(occurrence.x, occurrence.y);
-		// var repres = new EcoAgentRepresentation(occurrence.source.UUID, regions)
-		// agentsValues.put(repres, occurrence.value)
+		agentsValues.replace(occurrence.source.UUID, occurrence.value)
 	}
 
-	on ReadyToResolve {
-		// if (candidates.size > 0) {
-		// actualValue = candidates.element
-		// emitToHolon(new EcoValue => [it.value = actualValue; it.x = getX; it.y = getY], RegionTypeEnum.COLONNE)
-		// }
+	on StartResolve [occurrence.source.UUID == ID] {
+		if (occurrence.agents !== null) {
+			for (a : occurrence.agents) {
+				agentsValues.put(a, 0)
+			}
+		}else{
+			error("Pas d'agents")
+		}
 	}
 
-//	on Aggression [!isMe(occurrence.source.UUID)] {
-//		var regions = determineRegion(occurrence.x, occurrence.y);
-//		var repres = new EcoAgentRepresentation(occurrence.source.UUID, regions)
-//		agentsValues.put(repres, occurrence.value)
-//		val cand = valuesWithLessOccurrences
-//		cand.removeAll(#[actualValue, occurrence.value])
-//		if (cand.size > 0) {
-//			actualValue = pollRandomValueFromList(cand)
-//			agression
-//		}
-//	}
-
-	on TokenReceived [candidates.size == 1] {
-		actualValue = candidates.element;
-		agression
-		emit(new TokenReleased => [done = true])
+	on Aggression [!isMe(occurrence.source.UUID) && candidates.size > 1] {
+		// Fuite
+		agentsValues.replace(occurrence.source.UUID, occurrence.value)
+		val cand = valuesWithLessOccurrences
+		cand.removeAll(#[actualValue, occurrence.value])
+		if (cand.size > 0) {
+			changeValue(pollRandomValueFromList(cand))
+		} else {
+			error("No candidates availables")
+		}
 	}
 	
+	on TokenReleased [occurrence.done == true] {
+		agentsValues.remove(occurrence.source.UUID)
+	}
 
+	// Si l'agent n'a qu'un seul candidat, c'est forcément la solution.
+	on TokenReceived [candidates.size == 1] {
+		changeValue(candidates.element)
+		emit(new TokenReleased => [done = true])
+	}
+
+	// Chaque agent recevra une fois le token pour intialiser sa valeur
 	on TokenReceived [!satisfied] {
 		// Aggression
-		val cand = new ArrayList(candidates)
-		// valuesWithLessOccurrences
-		cand.removeAll(#[
-			actualValue
-		])
-		if (cand.size > 0) {
-			actualValue = pollRandomValueFromList(cand)
-			agression
-		}
+		changeValue(candidates.element)
 		emit(new TokenReleased)
 	}
 
@@ -100,7 +97,7 @@ behavior EcoResolutionBehavior {
 	}
 
 	def private satisfied : boolean {
-		return (!actualValue.equals(0) && !agentsValues.values.contains(actualValue)) || candidates.size == 1
+		return (!actualValue.equals(0))
 	}
 
 	def private getValuesWithLessOccurrences : List<Integer> {
@@ -114,6 +111,13 @@ behavior EcoResolutionBehavior {
 		}
 		return list;
 	}
+	
+	def changeValue(value : int) {
+		info("Mongolise")
+		actualValue = value
+		emitToAllHolons(new EcoValue => [x = getX; y = getY; value = actualValue])
+		if(agentsValues.values.contains(actualValue)) agression
+	}
 
 	def agression() {
 		var listBloc = new ArrayList<Address>
@@ -122,36 +126,27 @@ behavior EcoResolutionBehavior {
 
 		for (entry : agentsValues.entrySet) {
 			if (entry.value.equals(actualValue)) {
-				var type = entry.key.regions.get(0)
+				var type = getHolon(entry.key)
 				switch (type) {
 					case BLOC:
 						listBloc.add(
-							spaces.get(RegionTypeEnum.BLOC).getAddress(entry.key.id)
+							spaces.get(RegionTypeEnum.BLOC).getAddress(entry.key)
 						)
 					case COLONNE:
 						listCol.add(
-							spaces.get(RegionTypeEnum.COLONNE).getAddress(entry.key.id)
+							spaces.get(RegionTypeEnum.COLONNE).getAddress(entry.key)
 						)
 					case LIGNE:
 						listRow.add(
-							spaces.get(RegionTypeEnum.LIGNE).getAddress(entry.key.id)
+							spaces.get(RegionTypeEnum.LIGNE).getAddress(entry.key)
 						)
 				}
 			}
 		}
-
-		// info("Blocs : " + listBloc)
-		// info("Ligne : " + listRow)
-		// info("Colonne : "+ listCol)
 		var agressionEvent = new Aggression => [it.value = actualValue; x = getX; y = getY]
 		if(listBloc.size > 1) agressionEvent.emitToHolon(RegionTypeEnum.BLOC, Scopes.addresses(listBloc))
 		if(listBloc.size > 1) agressionEvent.emitToHolon(RegionTypeEnum.LIGNE, Scopes.addresses(listRow))
 		if(listBloc.size > 1) agressionEvent.emitToHolon(RegionTypeEnum.COLONNE, Scopes.addresses(listCol))
-
-		if (agentsValues.size == 0) {
-			emitToAllHolons(new Aggression => [it.value = actualValue; x = getX; y = getY])
-		}
-
 	}
 
 	def private countOccurrences(candidate : Integer) : Integer {
