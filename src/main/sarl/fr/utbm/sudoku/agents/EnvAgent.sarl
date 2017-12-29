@@ -29,6 +29,7 @@ import io.sarl.util.OpenEventSpace
 import java.util.ArrayList
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import fr.utbm.sudoku.behaviors.TokenManagerBehavior
 
 agent EnvAgent {
 
@@ -45,6 +46,8 @@ agent EnvAgent {
 	var rowInit = new Integer(0);
 	var colInit = new Integer(0);
 	var ecoResolveCountDown = 9;
+	
+	var tokenManagerBehavior : TokenManagerBehavior
 
 	on Initialize {
 		if (occurrence.parameters.length >= 2) {
@@ -55,12 +58,15 @@ agent EnvAgent {
 	}
 
 	on SpawnRequired {
-		this.controller = occurrence.controller
-		info("Spawn command required")
+		this.controller = occurrence.controller		
+		var rows = new ConcurrentHashMap<Integer,UUID>
+		var cols = new ConcurrentHashMap<Integer,UUID>
 		for (var i = 0; i < 9; i++) {
-			RowAndColAgent.spawn(i, this.controller.sudoku.getRow(i), RegionTypeEnum.LIGNE)
-			RowAndColAgent.spawn(i, this.controller.sudoku.getColumn(i), RegionTypeEnum.COLONNE)
+			rows.put(i,RowAndColAgent.spawn(i, this.controller.sudoku.getRow(i), RegionTypeEnum.LIGNE))
+			cols.put(i,RowAndColAgent.spawn(i, this.controller.sudoku.getColumn(i), RegionTypeEnum.COLONNE))
 		}
+		tokenManagerBehavior = new TokenManagerBehavior(this, rows,cols)
+		tokenManagerBehavior.registerBehavior
 	}
 
 	on RowAndColSpawned {
@@ -140,6 +146,7 @@ agent EnvAgent {
 
 	on Exit [!isFromMe] {
 		emit(new Exit)
+		tokenManagerBehavior.unregisterBehavior
 		killMe
 	}
 

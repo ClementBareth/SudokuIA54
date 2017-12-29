@@ -1,0 +1,70 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.behaviors
+
+import fr.utbm.sudoku.events.TokenRequirement
+import io.sarl.core.DefaultContextInteractions
+import io.sarl.lang.core.Address
+import io.sarl.lang.core.Agent
+import io.sarl.util.Scopes
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+behavior TokenManagerBehavior {
+
+	uses DefaultContextInteractions
+	
+	var rowAgents : ConcurrentHashMap<Integer, UUID>
+	var colAgents : ConcurrentHashMap<Integer,UUID>
+	
+	var blocAsking : Address
+	
+	var rowAsked : UUID
+	var colAsked : UUID
+	
+	var rowAnswered : boolean
+	var colAnswered : boolean
+	
+	var askingLock = new ReentrantLock
+	
+	new (a : Agent, rows : ConcurrentHashMap<Integer, UUID>, cols : ConcurrentHashMap<Integer, UUID>){
+		super(a)
+		this.rowAgents = rows
+		this.colAgents = cols
+	}
+	
+	on TokenRequirement{
+		askingLock.lock
+		rowAnswered = false
+		colAnswered = false
+		blocAsking = occurrence.source
+		rowAsked = rowAgents.get(occurrence.x)
+		colAsked = rowAgents.get(occurrence.y)
+		emit(new TokenRequirement => [x = occurrence.x ; y = occurrence.y], Scopes.addresses(
+			defaultSpace.getAddress(rowAsked), defaultSpace.getAddress(colAsked)
+		))
+	}
+	
+	on TokenRequirement[isFrom(rowAsked)]{
+		rowAnswered = true
+		answerReceived
+	}
+	
+	on TokenRequirement[isFrom(colAsked)]{
+		colAnswered = true
+		answerReceived
+	}
+	
+	def private answerReceived {
+		if (rowAnswered && colAnswered) {
+			emit(new TokenRequirement => [answer = true], Scopes.addresses(blocAsking))
+			askingLock.unlock
+		}
+	}
+}

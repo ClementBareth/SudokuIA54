@@ -123,6 +123,12 @@ event StartResolve {
 	var agents : Set<UUID>
 }
 
+event TokenRequirement{
+	var answer : boolean
+	var id : UUID
+	var x : int
+	var y : int
+}
 event Resolve{
 	var values : List<Integer>
 	var algos : List<Algorithms>
