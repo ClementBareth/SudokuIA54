@@ -18,6 +18,7 @@ import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.StartResolve
 import fr.utbm.sudoku.events.StopResolve
 import fr.utbm.sudoku.events.Values
+import fr.utbm.sudoku.model.AgentPosition
 import fr.utbm.sudoku.model.Algorithms
 import fr.utbm.sudoku.model.ContextContainer
 import fr.utbm.sudoku.model.RegionTypeEnum
@@ -29,6 +30,7 @@ import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
+import io.sarl.lang.core.Address
 import io.sarl.lang.core.EventSpace
 import io.sarl.util.Scopes
 import java.util.ArrayList
@@ -37,7 +39,6 @@ import java.util.HashSet
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.ReentrantLock
-import fr.utbm.sudoku.model.AgentPosition
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -77,8 +78,14 @@ agent CellAgent {
 		spaces.put(RegionTypeEnum.BLOC, defaultSpace)
 		spaces.put(RegionTypeEnum.LIGNE, rowCtxId.^space)
 		spaces.put(RegionTypeEnum.COLONNE, colCtxId.^space)
+		
+		var addresses = new HashMap<RegionTypeEnum, Address>
+		addresses.put(RegionTypeEnum.BLOC, defaultSpace.getAddress(parentID))
+		addresses.put(RegionTypeEnum.LIGNE, rowCtxId.^space.getAddress(rowCtxId.contextId))
+		addresses.put(RegionTypeEnum.BLOC, colCtxId.^space.getAddress(colCtxId.contextId))
+		
 		setSkill(new SudokuMathsBaseSkill(values), SudokuMaths)
-		commSkill = new SudokuBaseCommunication(x, y, spaces)
+		commSkill = new SudokuBaseCommunication(x, y, spaces, addresses)
 		setSkill(commSkill, SudokuCommunication)
 		nudeSingletonBehavior = new NudeSingletonSeekingBehavior(this, candidates, commSkill)
 		hiddenSingletonBehavior = new HiddenSingletonSeekingBehavior(this, candidates, commSkill)
@@ -124,9 +131,10 @@ agent CellAgent {
 			candidatesLock.lock
 			candidates.addAll(evaluateCandidates)
 			candidatesLock.unlock
+			var position = new AgentPosition(getX, getY, ID)
 			emit(new ReadyToResolve => [
-				pos = new AgentPosition(this.x, this.y, ID)			
-			])
+				it.pos = position
+			], Scopes::addresses(defaultSpace.getAddress(parentID)))
 			wake(new StartResolve => [it.agents = this.agents])
 		} else {
 			nbValuesReceivedLock.unlock

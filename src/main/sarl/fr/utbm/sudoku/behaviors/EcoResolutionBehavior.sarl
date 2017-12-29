@@ -11,7 +11,6 @@ import fr.utbm.sudoku.events.StartResolve
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
 import fr.utbm.sudoku.model.RegionTypeEnum
-import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
 import io.sarl.core.Logging
 import io.sarl.lang.core.Address
@@ -32,7 +31,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  */
 behavior EcoResolutionBehavior {
 
-	uses SudokuCommunication, Logging, DefaultContextInteractions
+	uses SudokuCommunication, Logging
 
 	var private sudokuCommunicationSkill : SudokuBaseCommunication
 	var private candidates : ConcurrentLinkedQueue<Integer>
@@ -82,18 +81,18 @@ behavior EcoResolutionBehavior {
 	// Si l'agent n'a qu'un seul candidat, c'est forcément la solution.
 	on TokenReceived [candidates.size == 1] {
 		changeValue(candidates.element)
-		emit(new TokenReleased => [done = true])
+		releaseToken(true)
 	}
 
 	// Chaque agent recevra une fois le token pour intialiser sa valeur
 	on TokenReceived [!satisfied] {
 		// Aggression
 		changeValue(candidates.element)
-		emit(new TokenReleased)
+		releaseToken(false)
 	}
 
 	on TokenReceived [satisfied] {
-		emit(new TokenReleased)
+		releaseToken(false)
 	}
 
 	def private satisfied : boolean {

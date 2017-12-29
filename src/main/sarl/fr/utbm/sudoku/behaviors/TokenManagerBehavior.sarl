@@ -4,13 +4,15 @@
 package fr.utbm.sudoku.behaviors
 
 import fr.utbm.sudoku.events.TokenRequirement
+import fr.utbm.sudoku.events.TokenRequirementAnswer
 import io.sarl.core.DefaultContextInteractions
+import io.sarl.core.Logging
 import io.sarl.lang.core.Address
 import io.sarl.lang.core.Agent
 import io.sarl.util.Scopes
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.Semaphore
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -18,67 +20,62 @@ import java.util.concurrent.locks.ReentrantLock
  */
 behavior TokenManagerBehavior {
 
-	uses DefaultContextInteractions
-	
+	uses DefaultContextInteractions, Logging
+
 	var rowAgents : ConcurrentHashMap<Integer, UUID>
-	var colAgents : ConcurrentHashMap<Integer,UUID>
-	
+	var colAgents : ConcurrentHashMap<Integer, UUID>
+
 	var blocAsking : Address
-	
+
 	var rowAsked : UUID
 	var colAsked : UUID
-	
+
 	var rowAnswered : boolean
 	var colAnswered : boolean
-	
-	var x : Integer
-	var y : Integer
+
+	var xToken : int
+	var yToken : int
 	var idAgent : UUID
-	
+
 	var nbAlgos : int
-	
-	var askingLock = new ReentrantLock
-	
-	new (a : Agent, rows : ConcurrentHashMap<Integer, UUID>, cols : ConcurrentHashMap<Integer, UUID>, nbAlgos : int){
+
+	var semaphore = new Semaphore(1)
+
+	new (a : Agent, rows : ConcurrentHashMap<Integer, UUID>, cols : ConcurrentHashMap<Integer, UUID>, nbAlgos : int) {
 		super(a)
 		this.rowAgents = rows
 		this.colAgents = cols
 		this.nbAlgos = nbAlgos
 	}
-	
-	on TokenRequirement{
-		askingLock.lock
+
+	on TokenRequirement {
+		semaphore.acquire
 		rowAnswered = false
 		colAnswered = false
 		blocAsking = occurrence.source
-		x = occurrence.x
-		y = occurrence.y
+		xToken = occurrence.x
+		yToken = occurrence.y
 		idAgent = occurrence.id
-		rowAsked = rowAgents.get(x)
-		colAsked = rowAgents.get(y)
-		emit(new TokenRequirement => [x = occurrence.x ; y = occurrence.y], Scopes.addresses(
-			defaultSpace.getAddress(rowAsked), defaultSpace.getAddress(colAsked)
+		rowAsked = rowAgents.get(xToken)
+		colAsked = colAgents.get(yToken)
+		emit(new TokenRequirement => [x = xToken; y = yToken], Scopes.addresses(
+			defaultSpace.getAddress(rowAsked),
+			defaultSpace.getAddress(colAsked)
 		))
 	}
-	
-	on TokenRequirement[isFrom(rowAsked)]{
-		rowAnswered = true
-		// Aucun agent n'a de tokens dans la ligne
-		if(occurrence.nbTokens == nbAlgos) x = null
-		answerReceived
-	}
-	
-	on TokenRequirement[isFrom(colAsked)]{
-		colAnswered = true
-		// Aucun agent n'a de tokens dans la colonne
-		if(occurrence.nbTokens == nbAlgos) y = null
-		answerReceived
-	}
-	
-	def private answerReceived {
-		if (rowAnswered && colAnswered) {
-			emit(new TokenRequirement => [it.x = this.x ; it.y = this.y; it.id = this.idAgent], Scopes.addresses(blocAsking))
-			askingLock.unlock
+
+	on TokenRequirementAnswer {
+		if (occurrence.isFrom(rowAsked)) {
+			rowAnswered = true
+			if(occurrence.nbTokens < nbAlgos) xToken = -1
+		} else if (occurrence.isFrom(colAsked)) {
+			colAnswered = true
+			if(occurrence.nbTokens < nbAlgos) yToken = -1
+		}
+		if (rowAnswered && colAnswered) {			
+			emit(new TokenRequirement => [x = this.xToken; y = this.yToken; id = this.idAgent],
+				Scopes.addresses(blocAsking))
+			semaphore.release
 		}
 	}
 }

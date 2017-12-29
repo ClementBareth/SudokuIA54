@@ -125,12 +125,17 @@ event StartResolve {
 }
 
 event TokenRequirement{
-	var nbTokens : int
 	var answer : boolean
 	var id : UUID
-	var x : Integer
-	var y : Integer
+	var x : int
+	var y : int
+	var name : String
 }
+
+event TokenRequirementAnswer {
+	var nbTokens : int
+}
+
 event Resolve{
 	var values : List<Integer>
 	var algos : List<Algorithms>

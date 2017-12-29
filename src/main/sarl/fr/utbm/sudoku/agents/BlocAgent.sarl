@@ -12,6 +12,7 @@ import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
+import fr.utbm.sudoku.events.TokenRequirement
 import fr.utbm.sudoku.events.UpdateSudoku
 import fr.utbm.sudoku.events.Values
 import fr.utbm.sudoku.model.AgentPosition
@@ -33,7 +34,6 @@ import java.util.List
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
-import fr.utbm.sudoku.events.TokenRequirement
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -53,6 +53,7 @@ agent BlocAgent {
 	var nbTokenReleased = 0
 	var expectedTokens : Integer
 	var tokens = new Tokens
+	var spawner : UUID
 
 	on Initialize {
 		if (occurrence.parameters.length >= 5) {
@@ -63,6 +64,7 @@ agent BlocAgent {
 			this.colCtxIds = occurrence.parameters.get(4) as ConcurrentHashMap<Integer, ContextContainer>
 			loggingName = "Bloc n°(" + startRow + "," + startCol + ")"
 		}
+		spawner = occurrence.spawner
 		for (var i = 0; i < 9; i++) {
 			if (blocValues.get(i) === null || blocValues.get(i) == 0) {
 				var row = startRow + i / 3 as Integer
@@ -115,7 +117,7 @@ agent BlocAgent {
 	}
 
 	def sendToken(id : UUID) {
-		in(5000) [
+		in(1) [
 			agentResolving = id;
 			wake(
 				new TokenReceived,
@@ -131,7 +133,6 @@ agent BlocAgent {
 		nbTokenReleased++
 		if (this.nbTokenReleased == expectedTokens) {
 			nbTokenReleased = 0
-			tokens.incrToken(new AgentPosition(occurrence.source.UUID))
 			var nextAgent = tokens.getNextAgent
 			if (nextAgent !== null) {
 				checkToken(nextAgent)
@@ -145,29 +146,35 @@ agent BlocAgent {
 		tokens.remove(occurrence.source.UUID)
 		agents.remove(occurrence.source.UUID)
 	}
-	
 	/** 
 	 * L'agent est initialisé
 	 */
 	on ReadyToResolve {
 		tokens.addAgent(occurrence.pos);
 		if (tokens.size == innerContext.defaultSpace.participants.size - 1) {
-			var nextAgent = tokens.getNextAgent(occurrence.pos.x, occurrence.pos.y)
-			checkToken(nextAgent)
+			var nextAgent = tokens.getNextAgent
+			if(nextAgent !== null) checkToken(nextAgent) else error("Agent should not be null here")
 		}
 	}
-	
-	on TokenRequirement{
-		if(occurrence.x !== null && occurrence.y !== null){
-			tokens.incrToken(new AgentPosition(occurrence.x,occurrence.y,occurrence.id))
+
+	on TokenRequirement {
+		if (occurrence.x == -1 && occurrence.y == -1) {
+			tokens.incrToken(new AgentPosition(occurrence.x, occurrence.y, occurrence.id))
 			sendToken(occurrence.id)
-		}else{
+			var nextAgent = tokens.getNextAgent;
+			checkToken(nextAgent)
+		} else {
 			var nextAgent = tokens.getNextAgent(occurrence.x, occurrence.y)
 			checkToken(nextAgent)
 		}
 	}
-	
-	def private checkToken(a : AgentPosition){
-		emit(new TokenRequirement => [x = a.x; y = a.y; id = a.id], Scopes.addresses(defaultSpace.getAddress(parentID)))
+
+	def private checkToken(a : AgentPosition) {
+		emit(new TokenRequirement => [
+			x = a.x;
+			y = a.y;
+			id = a.id;
+			name = "("+startRow+","+startCol+")"
+		], Scopes.addresses(defaultSpace.getAddress(spawner)))
 	}
 }

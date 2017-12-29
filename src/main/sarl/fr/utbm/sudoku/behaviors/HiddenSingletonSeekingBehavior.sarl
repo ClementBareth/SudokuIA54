@@ -11,7 +11,6 @@ import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.StartResolve
 import fr.utbm.sudoku.events.StopResolve
 import fr.utbm.sudoku.events.TokenReceived
-import fr.utbm.sudoku.events.TokenReleased
 import fr.utbm.sudoku.model.RegionTypeEnum
 import fr.utbm.sudoku.model.ScanCommand
 import io.sarl.core.Behaviors
@@ -57,7 +56,7 @@ behavior HiddenSingletonSeekingBehavior {
 	}
 
 	on TokenReceived [!resolving || scanQueue.size == 0] {
-		emit(new TokenReleased)
+		releaseToken(false)
 	}
 
 	on StartResolve [isFromMe] {
@@ -126,7 +125,7 @@ behavior HiddenSingletonSeekingBehavior {
 				wake(new StopResolve)
 				candidates.clear
 				emitToAllHolons(new SolutionFound => [solution = candidate; x = getX; y = getY])
-				relaseToken
+				releaseToken(false)
 			}
 		}
 
@@ -150,10 +149,6 @@ behavior HiddenSingletonSeekingBehavior {
 		spaces.get(occurrence.type).emit(answerEvent, Scopes::addresses(occurrence.source))
 	}
 
-	def relaseToken {
-		emit(new TokenReleased)
-	}
-
 	def scanNextRegion() {
 		scanCommandLock.lock
 		scanCommand = scanQueue.poll
@@ -162,7 +157,7 @@ behavior HiddenSingletonSeekingBehavior {
 			var e = new AskForCandidate(scanCommand.candidate, scanCommand.type)
 			e.emitToHolon(scanCommand.type)
 		} else {
-			relaseToken
+			releaseToken(false)
 		}
 	}
 }

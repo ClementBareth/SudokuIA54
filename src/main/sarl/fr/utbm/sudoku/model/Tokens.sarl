@@ -13,58 +13,61 @@ import java.util.UUID
  * 
  */
 class Tokens {
-	
-	var tokens : HashMap<AgentPosition, Integer>
 
-	new(){
-		
+	var tokens = new HashMap<AgentPosition, Integer>
+
+	new() {
 	}
-	
-	new(agents : List<AgentPosition>){
-		for(a : agents){
-			tokens.put(a,0)
+
+	new(agents : List<AgentPosition>) {
+		for (a : agents) {
+			tokens.put(a, 0)
 		}
 	}
-	
-	/*
+	/* 
 	 * x !== null : on ne retourne pas un agent qui a ce x 
 	 * y !== null : on ne retourne pas un agent qui a ce y
 	 */
-	def getNextAgent(x : Integer = null, y : Integer = null) : AgentPosition {
+	def getNextAgent(x : int = -1, y : int = -1) : AgentPosition {
 		var map = tokens.filter [ key, value |
-			key.x !== x && key.y !== y
+			(key.x !== x && key.y !== y)
 		]
-		if(map.size> 0) {
+		if (map.size > 0) {
 			var min = Collections.min(map.values)
 			for (entry : tokens.entrySet) {
 				if (entry.value == min) {
 					return entry.key
 				}
 			}
-		}else{
+		} else {
 			return null
 		}
 	}
-	
-	def addAgent(pos : AgentPosition){
-		tokens.put(pos,0)
+
+	def addAgent(pos : AgentPosition) {
+		tokens.put(pos, 0)
 	}
-	
-	def incrToken(pos : AgentPosition){
-		var newTokenCount = tokens.get(pos) + 1
-		tokens.replace(pos, newTokenCount)
+
+	def incrToken(pos : AgentPosition) {
+		try{
+			var newTokenCount = tokens.get(pos) + 1
+			tokens.replace(pos, newTokenCount)
+		} catch (e : NullPointerException) {
+			println(pos)
+			println(tokens.keySet)
+		}
 	}
-	
-	def removeAgent(pos : AgentPosition){
+
+	def removeAgent(pos : AgentPosition) {
 		tokens.remove(pos)
 	}
-	
+
 	def remove(uuid : UUID) {
 		removeAgent(new AgentPosition(uuid))
 	}
-	
-	def size : int{
+
+	def size : int {
 		return tokens.size
 	}
-	
+
 }

@@ -10,6 +10,7 @@ import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
 import fr.utbm.sudoku.events.TokenRequirement
+import fr.utbm.sudoku.events.TokenRequirementAnswer
 import fr.utbm.sudoku.events.Values
 import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.Behaviors
@@ -19,6 +20,7 @@ import io.sarl.core.InnerContextAccess
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.core.MemberLeft
+import io.sarl.util.Scopes
 import java.util.List
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -87,7 +89,7 @@ agent RowAndColAgent {
 	}
 	
 	on TokenRequirement{
-		emit(new TokenRequirement => [answer = hasToken])
+		emit(new TokenRequirementAnswer => [nbTokens = hasToken], Scopes.addresses(occurrence.source))
 	}
 
 	on MemberLeft {

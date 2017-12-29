@@ -3,12 +3,14 @@
  */
 package fr.utbm.sudoku.capacities
 
+import fr.utbm.sudoku.events.TokenReleased
 import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.ExternalContextAccess
 import io.sarl.lang.core.Address
 import io.sarl.lang.core.Event
 import io.sarl.lang.core.EventSpace
 import io.sarl.lang.core.Scope
+import io.sarl.util.Scopes
 import java.util.ArrayList
 import java.util.List
 import java.util.Map
@@ -37,19 +39,23 @@ capacity SudokuCommunication {
 	def determineHolon(e : Event) : RegionTypeEnum
 	
 	def getHolon(id : UUID) : RegionTypeEnum
+	
+	def releaseToken(done : boolean)
 }
 
 skill SudokuBaseCommunication implements SudokuCommunication {
 	uses ExternalContextAccess
 
 	var spaces : Map<RegionTypeEnum, EventSpace>
+	var addresses : Map<RegionTypeEnum,Address>
 	var x : Integer
 	var y : Integer
 
-	new (x : Integer, y : Integer, s : Map<RegionTypeEnum, EventSpace>) {
+	new (x : Integer, y : Integer, s : Map<RegionTypeEnum, EventSpace>, a : Map<RegionTypeEnum, Address>) {
 		this.x = x;
 		this.y = y;
 		this.spaces = s;
+		this.addresses = a;
 	}
 
 	def emitToAllHolons(e : Event) {
@@ -62,6 +68,14 @@ skill SudokuBaseCommunication implements SudokuCommunication {
 		var ^space = spaces.get(type)
 		e.source = ^space.getAddress(ID)
 		^space.emit(e, scope)
+	}
+	
+	
+	def releaseToken (d : boolean){
+		var e = new TokenReleased => [done = d]
+		e.emitToHolon(RegionTypeEnum.BLOC, Scopes.addresses(addresses.get(RegionTypeEnum.BLOC)))
+		e.emitToHolon(RegionTypeEnum.LIGNE, Scopes.addresses(addresses.get(RegionTypeEnum.LIGNE)))
+		e.emitToHolon(RegionTypeEnum.COLONNE, Scopes.addresses(addresses.get(RegionTypeEnum.COLONNE)))
 	}
 
 	def getX : Integer {
