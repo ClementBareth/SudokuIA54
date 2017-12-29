@@ -1,0 +1,42 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.model
+
+import java.util.UUID
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+class AgentPosition {
+
+	var private x : int
+	var private y : int
+	var private id : UUID
+
+	new (x : int, y : int, id : UUID) {
+		this.x = x
+		this.y = y
+		this.id = id
+	}
+	
+	new (id : UUID){
+		this.id = id
+	}
+
+	def getId : UUID {
+		id
+	}
+
+	def getY : int {
+		y
+	}
+
+	def getX : int {
+		x
+	}
+	
+	def equals(p : AgentPosition) : boolean{
+		return (x == p.x && y == p.y && id == p.id) || (id == p.id)
+	}
+}

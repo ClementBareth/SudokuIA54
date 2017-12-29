@@ -14,9 +14,11 @@ import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
 import fr.utbm.sudoku.events.UpdateSudoku
 import fr.utbm.sudoku.events.Values
+import fr.utbm.sudoku.model.AgentPosition
 import fr.utbm.sudoku.model.Algorithms
 import fr.utbm.sudoku.model.ContextContainer
 import fr.utbm.sudoku.model.RegionTypeEnum
+import fr.utbm.sudoku.model.Tokens
 import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
@@ -27,11 +29,11 @@ import io.sarl.core.MemberLeft
 import io.sarl.core.Schedules
 import io.sarl.util.Scopes
 import java.util.ArrayList
-import java.util.Collections
 import java.util.List
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
+import fr.utbm.sudoku.events.TokenRequirement
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -47,10 +49,10 @@ agent BlocAgent {
 	var colCtxIds : ConcurrentHashMap<Integer, ContextContainer>
 	val agents = new ArrayList<UUID>
 	var valuesLock = new ReentrantLock
-	var tokens = new ConcurrentHashMap<UUID, Integer>
 	var agentResolving : UUID = null
 	var nbTokenReleased = 0
 	var expectedTokens : Integer
+	var tokens = new Tokens
 
 	on Initialize {
 		if (occurrence.parameters.length >= 5) {
@@ -84,7 +86,8 @@ agent BlocAgent {
 
 	on SolutionFound {
 		agents.remove(occurrence.source.UUID)
-		tokens.remove(occurrence.source.UUID)
+		// tokens.remove(occurrence.source.UUID)
+		tokens.removeAgent(new AgentPosition(occurrence.x, occurrence.y, occurrence.source.UUID))
 		valuesLock.lock
 		if (!blocValues.contains(occurrence.solution)) {
 			blocValues.add(occurrence.solution)
@@ -98,7 +101,7 @@ agent BlocAgent {
 	on EcoValue {
 		emit(new SolutionFoundInBloc => [solution = occurrence.value; x = occurrence.x; y = occurrence.y])
 	}
-	
+
 	on UpdateSudoku {
 		emit(new UpdateSudoku => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y])
 	}
@@ -110,20 +113,7 @@ agent BlocAgent {
 	on MemberLeft {
 		if(innerContext.defaultSpace.participants.size == 1) killMe
 	}
-	/** 
-	 * Détermine l'agent qui a eu le token le moins de fois jusqu'ici
-	 */
-	def determineAgentToReceiveToken : UUID {
-		var min = Collections.min(tokens.values)
-		for (entry : tokens.entrySet) {
-			if (entry.value == min) {
-				return entry.key
-			}
-		}
-	}
-	/** 
-	 * Envois du token à l'agent concerné
-	 */
+
 	def sendToken(id : UUID) {
 		in(5000) [
 			agentResolving = id;
@@ -137,33 +127,47 @@ agent BlocAgent {
 	/** 
 	 * Le token a été relâché par l'agent qui l'avait
 	 */
-	on TokenReleased /*[occurrence.source.UUID == agentResolving]*/ {
+	on TokenReleased [occurrence.source.UUID == agentResolving] {
 		nbTokenReleased++
 		if (this.nbTokenReleased == expectedTokens) {
 			nbTokenReleased = 0
-			var nb = tokens.get(occurrence.source.UUID)
-			if (nb !== null) {
-				nb++
-				tokens.put(occurrence.source.UUID, nb)
-			}
-			if (tokens.size > 0) {
-				sendToken(determineAgentToReceiveToken)
+			tokens.incrToken(new AgentPosition(occurrence.source.UUID))
+			var nextAgent = tokens.getNextAgent
+			if (nextAgent !== null) {
+				checkToken(nextAgent)
+			} else {
+				// TODO Voir quoi faire si on est à null !!!!
 			}
 		}
 	}
-	
-	on TokenReleased [occurrence.done]{
+
+	on TokenReleased [occurrence.done] {
 		tokens.remove(occurrence.source.UUID)
 		agents.remove(occurrence.source.UUID)
 	}
+	
 	/** 
 	 * L'agent est initialisé
 	 */
 	on ReadyToResolve {
-		tokens.put(occurrence.source.UUID, 0);
+		tokens.addAgent(occurrence.pos);
 		if (tokens.size == innerContext.defaultSpace.participants.size - 1) {
-			tokens.put(occurrence.source.UUID, 1);
-			sendToken(occurrence.source.UUID)
+			var nextAgent = tokens.getNextAgent(occurrence.pos.x, occurrence.pos.y)
+			checkToken(nextAgent)
 		}
+	}
+	
+	on TokenRequirement{
+		if(occurrence.x !== null && occurrence.y !== null){
+			tokens.incrToken(new AgentPosition(occurrence.x,occurrence.y,occurrence.id))
+			sendToken(occurrence.id)
+		}else{
+			var nextAgent = tokens.getNextAgent(occurrence.x, occurrence.y)
+			checkToken(nextAgent)
+		}
+	}
+	
+	def private checkToken(a : AgentPosition){
+		emit(new TokenRequirement => [x = a.x; y = a.y; id = a.id], Scopes.addresses(defaultSpace.getAddress(parentID)))
 	}
 }

@@ -7,6 +7,9 @@ import fr.utbm.sudoku.events.Position
 import fr.utbm.sudoku.events.RegionAgentInitialized
 import fr.utbm.sudoku.events.RegionAgentSpawned
 import fr.utbm.sudoku.events.Resolve
+import fr.utbm.sudoku.events.TokenReceived
+import fr.utbm.sudoku.events.TokenReleased
+import fr.utbm.sudoku.events.TokenRequirement
 import fr.utbm.sudoku.events.Values
 import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.Behaviors
@@ -31,6 +34,7 @@ agent RowAndColAgent {
 	var values : List<Integer>
 	var agents = new ConcurrentHashMap<Integer, UUID>
 	var agentType : RegionTypeEnum
+	var hasToken = 0
 
 	on Initialize {
 		if (occurrence.parameters.length >= 3) {
@@ -72,6 +76,18 @@ agent RowAndColAgent {
 				]
 			)
 		}
+	}
+	
+	on TokenReceived{
+		hasToken++
+	}
+	
+	on TokenReleased{
+		hasToken--
+	}
+	
+	on TokenRequirement{
+		emit(new TokenRequirement => [answer = hasToken])
 	}
 
 	on MemberLeft {

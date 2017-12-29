@@ -31,12 +31,19 @@ behavior TokenManagerBehavior {
 	var rowAnswered : boolean
 	var colAnswered : boolean
 	
+	var x : Integer
+	var y : Integer
+	var idAgent : UUID
+	
+	var nbAlgos : int
+	
 	var askingLock = new ReentrantLock
 	
-	new (a : Agent, rows : ConcurrentHashMap<Integer, UUID>, cols : ConcurrentHashMap<Integer, UUID>){
+	new (a : Agent, rows : ConcurrentHashMap<Integer, UUID>, cols : ConcurrentHashMap<Integer, UUID>, nbAlgos : int){
 		super(a)
 		this.rowAgents = rows
 		this.colAgents = cols
+		this.nbAlgos = nbAlgos
 	}
 	
 	on TokenRequirement{
@@ -44,8 +51,11 @@ behavior TokenManagerBehavior {
 		rowAnswered = false
 		colAnswered = false
 		blocAsking = occurrence.source
-		rowAsked = rowAgents.get(occurrence.x)
-		colAsked = rowAgents.get(occurrence.y)
+		x = occurrence.x
+		y = occurrence.y
+		idAgent = occurrence.id
+		rowAsked = rowAgents.get(x)
+		colAsked = rowAgents.get(y)
 		emit(new TokenRequirement => [x = occurrence.x ; y = occurrence.y], Scopes.addresses(
 			defaultSpace.getAddress(rowAsked), defaultSpace.getAddress(colAsked)
 		))
@@ -53,17 +63,21 @@ behavior TokenManagerBehavior {
 	
 	on TokenRequirement[isFrom(rowAsked)]{
 		rowAnswered = true
+		// Aucun agent n'a de tokens dans la ligne
+		if(occurrence.nbTokens == nbAlgos) x = null
 		answerReceived
 	}
 	
 	on TokenRequirement[isFrom(colAsked)]{
 		colAnswered = true
+		// Aucun agent n'a de tokens dans la colonne
+		if(occurrence.nbTokens == nbAlgos) y = null
 		answerReceived
 	}
 	
 	def private answerReceived {
 		if (rowAnswered && colAnswered) {
-			emit(new TokenRequirement => [answer = true], Scopes.addresses(blocAsking))
+			emit(new TokenRequirement => [it.x = this.x ; it.y = this.y; it.id = this.idAgent], Scopes.addresses(blocAsking))
 			askingLock.unlock
 		}
 	}

@@ -1,0 +1,70 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.model
+
+import java.util.Collections
+import java.util.HashMap
+import java.util.List
+import java.util.UUID
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+class Tokens {
+	
+	var tokens : HashMap<AgentPosition, Integer>
+
+	new(){
+		
+	}
+	
+	new(agents : List<AgentPosition>){
+		for(a : agents){
+			tokens.put(a,0)
+		}
+	}
+	
+	/*
+	 * x !== null : on ne retourne pas un agent qui a ce x 
+	 * y !== null : on ne retourne pas un agent qui a ce y
+	 */
+	def getNextAgent(x : Integer = null, y : Integer = null) : AgentPosition {
+		var map = tokens.filter [ key, value |
+			key.x !== x && key.y !== y
+		]
+		if(map.size> 0) {
+			var min = Collections.min(map.values)
+			for (entry : tokens.entrySet) {
+				if (entry.value == min) {
+					return entry.key
+				}
+			}
+		}else{
+			return null
+		}
+	}
+	
+	def addAgent(pos : AgentPosition){
+		tokens.put(pos,0)
+	}
+	
+	def incrToken(pos : AgentPosition){
+		var newTokenCount = tokens.get(pos) + 1
+		tokens.replace(pos, newTokenCount)
+	}
+	
+	def removeAgent(pos : AgentPosition){
+		tokens.remove(pos)
+	}
+	
+	def remove(uuid : UUID) {
+		removeAgent(new AgentPosition(uuid))
+	}
+	
+	def size : int{
+		return tokens.size
+	}
+	
+}

@@ -4,8 +4,8 @@
 package fr.utbm.sudoku.events
 
 import fr.utbm.sudoku.controllers.GridController
+import fr.utbm.sudoku.model.AgentPosition
 import fr.utbm.sudoku.model.Algorithms
-import fr.utbm.sudoku.model.EcoAgentRepresentation
 import fr.utbm.sudoku.model.RegionTypeEnum
 import fr.utbm.sudoku.model.Sudoku
 import io.sarl.lang.core.EventSpace
@@ -117,6 +117,7 @@ event UpdateSudoku {
 }
 
 event ReadyToResolve{
+	var pos : AgentPosition
 }
 
 event StartResolve {
@@ -124,10 +125,11 @@ event StartResolve {
 }
 
 event TokenRequirement{
+	var nbTokens : int
 	var answer : boolean
 	var id : UUID
-	var x : int
-	var y : int
+	var x : Integer
+	var y : Integer
 }
 event Resolve{
 	var values : List<Integer>

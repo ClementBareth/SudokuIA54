@@ -37,6 +37,7 @@ import java.util.HashSet
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.ReentrantLock
+import fr.utbm.sudoku.model.AgentPosition
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -123,7 +124,9 @@ agent CellAgent {
 			candidatesLock.lock
 			candidates.addAll(evaluateCandidates)
 			candidatesLock.unlock
-			emit(new ReadyToResolve)
+			emit(new ReadyToResolve => [
+				pos = new AgentPosition(this.x, this.y, ID)			
+			])
 			wake(new StartResolve => [it.agents = this.agents])
 		} else {
 			nbValuesReceivedLock.unlock
