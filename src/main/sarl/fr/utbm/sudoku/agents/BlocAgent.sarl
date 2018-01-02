@@ -12,7 +12,6 @@ import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
-import fr.utbm.sudoku.events.UpdateSudoku
 import fr.utbm.sudoku.events.Values
 import fr.utbm.sudoku.model.Algorithms
 import fr.utbm.sudoku.model.ContextContainer
@@ -51,6 +50,7 @@ agent BlocAgent {
 	var agentResolving : UUID = null
 	var nbTokenReleased = 0
 	var expectedTokens : Integer
+	var tokenReleasedLock = new ReentrantLock
 
 	on Initialize {
 		if (occurrence.parameters.length >= 5) {
@@ -89,18 +89,24 @@ agent BlocAgent {
 		if (!blocValues.contains(occurrence.solution)) {
 			blocValues.add(occurrence.solution)
 			valuesLock.unlock
-			emit(new SolutionFoundInBloc => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y])
+			emit(new SolutionFoundInBloc => [
+				solution = occurrence.solution;
+				x = occurrence.x;
+				y = occurrence.y;
+				definitive = true
+			])
 		} else {
 			valuesLock.unlock
 		}
 	}
 
 	on EcoValue {
-		emit(new SolutionFoundInBloc => [solution = occurrence.value; x = occurrence.x; y = occurrence.y])
-	}
-	
-	on UpdateSudoku {
-		emit(new UpdateSudoku => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y])
+		emit(new SolutionFoundInBloc => [
+			solution = occurrence.value;
+			x = occurrence.x;
+			y = occurrence.y;
+			definitive = false
+		])
 	}
 
 	on Exit {
@@ -125,7 +131,7 @@ agent BlocAgent {
 	 * Envois du token à l'agent concerné
 	 */
 	def sendToken(id : UUID) {
-		in(5000) [
+		in(100) [
 			agentResolving = id;
 			wake(
 				new TokenReceived,
@@ -137,7 +143,12 @@ agent BlocAgent {
 	/** 
 	 * Le token a été relâché par l'agent qui l'avait
 	 */
-	on TokenReleased /*[occurrence.source.UUID == agentResolving]*/ {
+	on TokenReleased [occurrence.source.UUID == agentResolving]{
+		tokenReleasedLock.lock
+		if (occurrence.done) {
+			tokens.remove(occurrence.source.UUID)
+			agents.remove(occurrence.source.UUID)
+		}
 		nbTokenReleased++
 		if (this.nbTokenReleased == expectedTokens) {
 			nbTokenReleased = 0
@@ -150,11 +161,7 @@ agent BlocAgent {
 				sendToken(determineAgentToReceiveToken)
 			}
 		}
-	}
-	
-	on TokenReleased [occurrence.done]{
-		tokens.remove(occurrence.source.UUID)
-		agents.remove(occurrence.source.UUID)
+		tokenReleasedLock.unlock
 	}
 	/** 
 	 * L'agent est initialisé

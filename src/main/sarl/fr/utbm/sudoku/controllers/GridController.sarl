@@ -129,11 +129,14 @@ class GridController implements Initializable, EventListener {
 	}
 
 	// Méthodes graphiques
-	def updateSudoku(x : Integer, y : Integer, value : Integer) {
+	def updateSudoku(x : Integer, y : Integer, value : Integer, definitive : boolean) {
 		Platform.runLater([
 			try {
 				sudoku.setValue(x, y, value)
 				setLabel(x, y, value)
+				if(definitive){
+					getLabelAt(x, y).textFill = Color.GREEN
+				}
 			} catch (e : Exception) {
 				e.printStackTrace
 			}
@@ -168,7 +171,7 @@ class GridController implements Initializable, EventListener {
 	// Méthodes de communication
 	def receiveEvent(^event : Event) {
 		if (^event instanceof UpdateSudoku) {
-			updateSudoku(^event.x, ^event.y, ^event.solution)
+			updateSudoku(^event.x, ^event.y, ^event.solution, ^event.definitive)
 		}
 	}
 

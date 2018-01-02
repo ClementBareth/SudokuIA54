@@ -108,12 +108,14 @@ event SolutionFoundInBloc {
 	var solution : Integer
 	var x : Integer
 	var y : Integer
+	var definitive : boolean
 }
 
 event UpdateSudoku {
 	var solution : Integer
 	var x : Integer
 	var y : Integer
+	var definitive : boolean
 }
 
 event ReadyToResolve{

@@ -5,9 +5,7 @@ package fr.utbm.sudoku.agents
 
 import fr.utbm.sudoku.SudokuApplication
 import fr.utbm.sudoku.controllers.GridController
-import fr.utbm.sudoku.events.EcoResolve
 import fr.utbm.sudoku.events.Exit
-import fr.utbm.sudoku.events.ReadyForEcoResolve
 import fr.utbm.sudoku.events.RegionAgentInitialized
 import fr.utbm.sudoku.events.RegionAgentSpawned
 import fr.utbm.sudoku.events.Resolve
@@ -16,7 +14,6 @@ import fr.utbm.sudoku.events.RowAndColSpawned
 import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.SpawnRequired
 import fr.utbm.sudoku.events.UpdateSudoku
-import fr.utbm.sudoku.model.Algorithms
 import fr.utbm.sudoku.model.ContextContainer
 import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.Behaviors
@@ -29,6 +26,7 @@ import io.sarl.util.OpenEventSpace
 import java.util.ArrayList
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
 
 agent EnvAgent {
 
@@ -44,7 +42,7 @@ agent EnvAgent {
 
 	var rowInit = new Integer(0);
 	var colInit = new Integer(0);
-	var ecoResolveCountDown = 9;
+	var updateLock = new ReentrantLock
 
 	on Initialize {
 		if (occurrence.parameters.length >= 2) {
@@ -108,9 +106,6 @@ agent EnvAgent {
 
 	on Resolve [!isFromMe] {
 		emit(new Resolve => [algos = occurrence.algos])
-		if (occurrence.algos.size == 1 && occurrence.algos.contains(Algorithms.ECO_RESOLUTION)) {
-			emit(new EcoResolve) 
-		}
 	}
 
 	on RowAndColInit {
@@ -118,25 +113,10 @@ agent EnvAgent {
 	}
 
 	on SolutionFoundInBloc {
-		openSpace.emit(
-			new UpdateSudoku => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y]
-		)
+		updateLock.lock
+		openSpace.emit(new UpdateSudoku => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y; definitive = occurrence.definitive])
+		updateLock.unlock
 	}
-
-	on UpdateSudoku {
-		openSpace.emit(new UpdateSudoku => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y])
-	}
-	
-
-	on ReadyForEcoResolve {
-		ecoResolveCountDown--
-		if (ecoResolveCountDown == 0) {
-			emit(new EcoResolve)
-			info("Start Eco Resolution")
-		}
-	}
-	
-	
 
 	on Exit [!isFromMe] {
 		emit(new Exit)

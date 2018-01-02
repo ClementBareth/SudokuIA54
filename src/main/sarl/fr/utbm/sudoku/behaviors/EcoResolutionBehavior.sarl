@@ -5,18 +5,14 @@ package fr.utbm.sudoku.behaviors
 
 import fr.utbm.sudoku.capacities.SudokuBaseCommunication
 import fr.utbm.sudoku.capacities.SudokuCommunication
-import fr.utbm.sudoku.events.Aggression
 import fr.utbm.sudoku.events.EcoValue
-import fr.utbm.sudoku.events.StartResolve
+import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
-import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
 import io.sarl.core.Logging
-import io.sarl.lang.core.Address
 import io.sarl.lang.core.Agent
-import io.sarl.util.Scopes
 import java.util.ArrayList
 import java.util.Collections
 import java.util.HashMap
@@ -25,6 +21,7 @@ import java.util.Map
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.locks.ReentrantLock
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -38,6 +35,9 @@ behavior EcoResolutionBehavior {
 	var private candidates : ConcurrentLinkedQueue<Integer>
 	var private actualValue = new Integer(0)
 	var agentsValues = new ConcurrentHashMap<UUID, Integer>
+	var nbUnchanged = 0
+	val maxNbUnchanged = 200
+	var tokenReceivedSatisfiedLock = new ReentrantLock
 
 	on Initialize {
 		setSkill(sudokuCommunicationSkill, SudokuCommunication)
@@ -49,59 +49,59 @@ behavior EcoResolutionBehavior {
 		this.sudokuCommunicationSkill = s
 	}
 
-	on EcoValue {
-		agentsValues.replace(occurrence.source.UUID, occurrence.value)
-	}
-
-	on StartResolve [occurrence.source.UUID == ID] {
-		if (occurrence.agents !== null) {
-			for (a : occurrence.agents) {
-				agentsValues.put(a, 0)
-			}
-		}else{
-			error("Pas d'agents")
-		}
-	}
-
-	on Aggression [!isMe(occurrence.source.UUID) && candidates.size > 1] {
-		// Fuite
-		agentsValues.replace(occurrence.source.UUID, occurrence.value)
-		val cand = valuesWithLessOccurrences
-		cand.removeAll(#[actualValue, occurrence.value])
-		if (cand.size > 0) {
-			changeValue(pollRandomValueFromList(cand))
-		} else {
-			error("No candidates availables")
-		}
+	on EcoValue [!isFromMe] {
+		agentsValues.put(occurrence.source.UUID, occurrence.value)
 	}
 	
-	on TokenReleased [occurrence.done == true] {
-		agentsValues.remove(occurrence.source.UUID)
+	on TokenReleased [!fromMe && occurrence.done == true] {
+		var value = agentsValues.get(occurrence.source.UUID)
+		if(value !== null) candidates.remove(value)
 	}
 
 	// Si l'agent n'a qu'un seul candidat, c'est forcément la solution.
 	on TokenReceived [candidates.size == 1] {
 		changeValue(candidates.element)
+		emitToAllHolons(new SolutionFound => [solution = candidates.element; x = getX; y = getY])
+		emit(new TokenReleased => [done = true])
+	}
+
+	on TokenReceived [candidates.size == 0] {
+		error("Agent should not have received token")
 		emit(new TokenReleased => [done = true])
 	}
 
 	// Chaque agent recevra une fois le token pour intialiser sa valeur
-	on TokenReceived [!satisfied] {
-		// Aggression
-		changeValue(candidates.element)
+	on TokenReceived [!satisfied && candidates.size > 1] {
+		val cand = valuesWithLessOccurrences
+		if (cand.size > 0) {
+			changeValue(pollRandomValueFromList(cand))
+		} else {
+			error("No candidates availables")
+		}
 		emit(new TokenReleased)
 	}
 
 	on TokenReceived [satisfied] {
-		emit(new TokenReleased)
+		tokenReceivedSatisfiedLock.lock
+		nbUnchanged++
+		if (nbUnchanged > maxNbUnchanged) {
+			emitToAllHolons(new SolutionFound => [solution = candidates.element; x = getX; y = getY])
+//			candidates.clear
+			emit(new TokenReleased => [done = true])
+		} else {
+			emit(new TokenReleased)
+			
+		}
+		tokenReceivedSatisfiedLock.unlock
 	}
 
 	def private satisfied : boolean {
-		return (!actualValue.equals(0))
+		return (!actualValue.equals(0) && !agentsValues.containsValue(actualValue))
 	}
 
-	def private getValuesWithLessOccurrences : List<Integer> {
+	def getValuesWithLessOccurrences : List<Integer> {
 		var occurrences = occurrencesMap
+		occurrences.remove(actualValue)
 		var min = Collections.min(occurrences.values)
 		var list = new ArrayList<Integer>
 		for (e : occurrences.entrySet) {
@@ -111,42 +111,12 @@ behavior EcoResolutionBehavior {
 		}
 		return list;
 	}
-	
+
 	def changeValue(value : int) {
-		info("Mongolise")
+//		info(actualValue + " => " + value)
+		nbUnchanged = 0
 		actualValue = value
 		emitToAllHolons(new EcoValue => [x = getX; y = getY; value = actualValue])
-		if(agentsValues.values.contains(actualValue)) agression
-	}
-
-	def agression() {
-		var listBloc = new ArrayList<Address>
-		var listCol = new ArrayList<Address>
-		var listRow = new ArrayList<Address>
-
-		for (entry : agentsValues.entrySet) {
-			if (entry.value.equals(actualValue)) {
-				var type = getHolon(entry.key)
-				switch (type) {
-					case BLOC:
-						listBloc.add(
-							spaces.get(RegionTypeEnum.BLOC).getAddress(entry.key)
-						)
-					case COLONNE:
-						listCol.add(
-							spaces.get(RegionTypeEnum.COLONNE).getAddress(entry.key)
-						)
-					case LIGNE:
-						listRow.add(
-							spaces.get(RegionTypeEnum.LIGNE).getAddress(entry.key)
-						)
-				}
-			}
-		}
-		var agressionEvent = new Aggression => [it.value = actualValue; x = getX; y = getY]
-		if(listBloc.size > 1) agressionEvent.emitToHolon(RegionTypeEnum.BLOC, Scopes.addresses(listBloc))
-		if(listBloc.size > 1) agressionEvent.emitToHolon(RegionTypeEnum.LIGNE, Scopes.addresses(listRow))
-		if(listBloc.size > 1) agressionEvent.emitToHolon(RegionTypeEnum.COLONNE, Scopes.addresses(listCol))
 	}
 
 	def private countOccurrences(candidate : Integer) : Integer {
@@ -164,7 +134,6 @@ behavior EcoResolutionBehavior {
 	def private pollRandomValueFromList(list : List<Integer>) {
 		Collections.shuffle(list)
 		var value = list.get(0)
-		list.remove(value)
 		return value
 	}
 }
