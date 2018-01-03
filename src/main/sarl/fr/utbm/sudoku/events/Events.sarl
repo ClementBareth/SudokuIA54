@@ -5,7 +5,6 @@ package fr.utbm.sudoku.events
 
 import fr.utbm.sudoku.controllers.GridController
 import fr.utbm.sudoku.model.Algorithms
-import fr.utbm.sudoku.model.EcoAgentRepresentation
 import fr.utbm.sudoku.model.RegionTypeEnum
 import fr.utbm.sudoku.model.Sudoku
 import io.sarl.lang.core.EventSpace
@@ -46,6 +45,12 @@ event Aggression{
 }
 
 event TokenReceived 
+
+event BlocTokenReceived 
+
+event BlocTokenReleased
+
+event BlocReady
 
 event TokenReleased{
 	var done : boolean

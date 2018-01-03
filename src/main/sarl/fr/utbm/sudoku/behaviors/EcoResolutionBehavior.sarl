@@ -9,6 +9,7 @@ import fr.utbm.sudoku.events.EcoValue
 import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
+import fr.utbm.sudoku.model.Configuration
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
 import io.sarl.core.Logging
@@ -36,11 +37,14 @@ behavior EcoResolutionBehavior {
 	var private actualValue = new Integer(0)
 	var agentsValues = new ConcurrentHashMap<UUID, Integer>
 	var nbUnchanged = 0
-	val maxNbUnchanged = 200
+	val maxNbUnchanged = 200000000
 	var tokenReceivedSatisfiedLock = new ReentrantLock
+	var config : Configuration
+	var passedConfigs = new ArrayList<Configuration>
 
 	on Initialize {
 		setSkill(sudokuCommunicationSkill, SudokuCommunication)
+		config = new Configuration(ID)
 	}
 
 	new(^agent : Agent, values : ConcurrentLinkedQueue<Integer>, s : SudokuBaseCommunication) {
@@ -50,6 +54,7 @@ behavior EcoResolutionBehavior {
 	}
 
 	on EcoValue [!isFromMe] {
+		config.update(occurrence.source.UUID,occurrence.value)
 		agentsValues.put(occurrence.source.UUID, occurrence.value)
 	}
 	
@@ -66,13 +71,26 @@ behavior EcoResolutionBehavior {
 	}
 
 	on TokenReceived [candidates.size == 0] {
-		error("Agent should not have received token")
 		emit(new TokenReleased => [done = true])
 	}
 
 	// Chaque agent recevra une fois le token pour intialiser sa valeur
 	on TokenReceived [!satisfied && candidates.size > 1] {
+//		val cand2 = new ArrayList<Integer>(candidates)
+// 		cand2.remove(actualValue)
+//		var newValue = false
+//		for (c : cand2) {
+//			var newConf = config.image
+//			newConf.update(ID,c)
+//			if(!passedConfigs.contains(newConf)){
+//				newValue = true
+//				changeValue(c)
+//				break;
+//			}
+//		}
+//		if(!newValue) error("No new configurations possible")
 		val cand = valuesWithLessOccurrences
+		info(cand)
 		if (cand.size > 0) {
 			changeValue(pollRandomValueFromList(cand))
 		} else {
@@ -86,7 +104,6 @@ behavior EcoResolutionBehavior {
 		nbUnchanged++
 		if (nbUnchanged > maxNbUnchanged) {
 			emitToAllHolons(new SolutionFound => [solution = candidates.element; x = getX; y = getY])
-//			candidates.clear
 			emit(new TokenReleased => [done = true])
 		} else {
 			emit(new TokenReleased)
@@ -97,6 +114,7 @@ behavior EcoResolutionBehavior {
 
 	def private satisfied : boolean {
 		return (!actualValue.equals(0) && !agentsValues.containsValue(actualValue))
+//		return (!config.myValue.equals(0) && config.isInConflict)
 	}
 
 	def getValuesWithLessOccurrences : List<Integer> {
@@ -116,6 +134,8 @@ behavior EcoResolutionBehavior {
 //		info(actualValue + " => " + value)
 		nbUnchanged = 0
 		actualValue = value
+		passedConfigs.add(config.image)
+		config.update(ID, value)
 		emitToAllHolons(new EcoValue => [x = getX; y = getY; value = actualValue])
 	}
 

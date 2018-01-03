@@ -5,6 +5,9 @@ package fr.utbm.sudoku.agents
 
 import fr.utbm.sudoku.SudokuApplication
 import fr.utbm.sudoku.controllers.GridController
+import fr.utbm.sudoku.events.BlocReady
+import fr.utbm.sudoku.events.BlocTokenReceived
+import fr.utbm.sudoku.events.BlocTokenReleased
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.RegionAgentInitialized
 import fr.utbm.sudoku.events.RegionAgentSpawned
@@ -22,15 +25,18 @@ import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
+import io.sarl.core.Schedules
 import io.sarl.util.OpenEventSpace
+import io.sarl.util.Scopes
 import java.util.ArrayList
+import java.util.Collections
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 
 agent EnvAgent {
 
-	uses Logging, ExternalContextAccess, DefaultContextInteractions, Behaviors, Lifecycle
+	uses Logging, ExternalContextAccess, DefaultContextInteractions, Behaviors, Lifecycle, Schedules
 
 	var app : SudokuApplication
 
@@ -43,6 +49,7 @@ agent EnvAgent {
 	var rowInit = new Integer(0);
 	var colInit = new Integer(0);
 	var updateLock = new ReentrantLock
+	var tokens = new ConcurrentHashMap<UUID, Integer>
 
 	on Initialize {
 		if (occurrence.parameters.length >= 2) {
@@ -121,6 +128,44 @@ agent EnvAgent {
 	on Exit [!isFromMe] {
 		emit(new Exit)
 		killMe
+	}
+	/** 
+	 * Détermine l'agent qui a eu le token le moins de fois jusqu'ici
+	 */
+	def determineBlocToReceiveToken : UUID {
+		var min = Collections.min(tokens.values)
+		for (entry : tokens.entrySet) {
+			if (entry.value == min) {
+				return entry.key
+			}
+		}
+	}
+	
+	on BlocReady{
+		tokens.put(occurrence.source.UUID,new Integer(0))
+		if (tokens.size == 9){
+			tokens.put(occurrence.source.UUID,1)
+			sendToken(occurrence.source.UUID)		
+		}
+	}
+	
+	on BlocTokenReleased{
+		var id = determineBlocToReceiveToken
+		var nb = tokens.get(id)
+		nb ++ 
+		tokens.replace(id,nb)
+		sendToken(id)
+	}
+	/** 
+	 * Envois du token à l'agent concerné
+	 */
+	def sendToken(id : UUID) {
+		in(1) [
+			emit(
+				new BlocTokenReceived,
+				Scopes.addresses(defaultSpace.getAddress(id))
+			)
+		]
 	}
 
 }

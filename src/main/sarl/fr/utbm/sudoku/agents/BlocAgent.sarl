@@ -4,6 +4,7 @@
 package fr.utbm.sudoku.agents
 
 import fr.utbm.sudoku.events.Algos
+import fr.utbm.sudoku.events.BlocReady
 import fr.utbm.sudoku.events.EcoValue
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.ReadyToResolve
@@ -31,6 +32,8 @@ import java.util.List
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
+import fr.utbm.sudoku.events.BlocTokenReceived
+import fr.utbm.sudoku.events.BlocTokenReleased
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -51,6 +54,7 @@ agent BlocAgent {
 	var nbTokenReleased = 0
 	var expectedTokens : Integer
 	var tokenReleasedLock = new ReentrantLock
+	var hasToken = false
 
 	on Initialize {
 		if (occurrence.parameters.length >= 5) {
@@ -128,17 +132,15 @@ agent BlocAgent {
 		}
 	}
 	/** 
-	 * Envois du token à l'agent concerné
+	 * Envoie du token à l'agent concerné
 	 */
 	def sendToken(id : UUID) {
-		in(100) [
 			agentResolving = id;
 			wake(
 				new TokenReceived,
 				Scopes.addresses(innerContext.defaultSpace.getAddress(id))
 			)
-
-		]
+		
 	}
 	/** 
 	 * Le token a été relâché par l'agent qui l'avait
@@ -157,9 +159,7 @@ agent BlocAgent {
 				nb++
 				tokens.put(occurrence.source.UUID, nb)
 			}
-			if (tokens.size > 0) {
-				sendToken(determineAgentToReceiveToken)
-			}
+			emit(new BlocTokenReleased)
 		}
 		tokenReleasedLock.unlock
 	}
@@ -169,8 +169,15 @@ agent BlocAgent {
 	on ReadyToResolve {
 		tokens.put(occurrence.source.UUID, 0);
 		if (tokens.size == innerContext.defaultSpace.participants.size - 1) {
-			tokens.put(occurrence.source.UUID, 1);
-			sendToken(occurrence.source.UUID)
+			emit(new BlocReady)
+//			tokens.put(occurrence.source.UUID, 1);
+//			sendToken(occurrence.source.UUID)
+		}
+	}
+	
+	on BlocTokenReceived {
+		if (tokens.size > 0) {
+			sendToken(determineAgentToReceiveToken)
 		}
 	}
 }
