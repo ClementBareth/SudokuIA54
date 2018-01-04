@@ -51,6 +51,12 @@ event TokenReleased{
 	var done : boolean
 }
 
+event EcoTokenReceived
+
+event EcoTokenReleased{
+	var done : boolean
+}
+
 event RegionAgentInitialized {
 	var id : UUID
 	var type : RegionTypeEnum
@@ -63,6 +69,8 @@ event RegionAgentSpawned {
 	var Id : UUID
 	var type : RegionTypeEnum
 }
+
+event BlocReady
 
 event Position {
 	var pos : Integer

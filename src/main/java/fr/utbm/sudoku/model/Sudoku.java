@@ -1,7 +1,10 @@
 package fr.utbm.sudoku.model;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 
 import org.dizitart.no2.objects.Id;
 
@@ -64,5 +67,57 @@ public class Sudoku {
 			}
 		}
 		return region;
+	}
+
+	public Sudoku copy() {
+		Sudoku newSudoku = new Sudoku();
+		newSudoku.matrix = this.matrix;
+		newSudoku.difficulty = this.difficulty;
+		return newSudoku;
+	}
+
+	public Position getBlocWithMostDoublons() {
+		HashMap<Integer, Integer> rowsDoublons = new HashMap<>();
+		HashMap<Integer, Integer> colsDoublons = new HashMap<>();
+		for (int i = 0; i < 9; i++) {
+			rowsDoublons.put(new Integer(i), new Integer(evaluateDoublons(RegionTypeEnum.LIGNE, i)));
+			colsDoublons.put(new Integer(i), new Integer(evaluateDoublons(RegionTypeEnum.COLONNE, i)));
+		}
+		Integer maxInRows = Collections.max(rowsDoublons.values());
+		Integer maxInCols = Collections.max(colsDoublons.values());
+		int x = 0;
+		int y = 0;
+		for (Entry<Integer, Integer> e : rowsDoublons.entrySet()) {
+			if (e.getValue().equals(maxInRows)) {
+				x = e.getKey().intValue();
+			}
+		}
+		for (Entry<Integer, Integer> e : colsDoublons.entrySet()) {
+			if (e.getValue().equals(maxInCols)) {
+				y = e.getKey().intValue();
+			}
+		}
+		return new Position(x / 3, y / 3);
+	}
+
+	private int evaluateDoublons(RegionTypeEnum type, int number) {
+		List<Integer> values = null;
+		switch (type) {
+		case LIGNE:
+			values = getRow(number);
+			break;
+		case COLONNE:
+			values = getColumn(number);
+			break;
+		default:
+			break;
+		}
+		int occurrences = 0;
+		for (int i = 1; i <= 9; i++) {
+			int freq = Collections.frequency(values, new Integer(i));
+			if (freq > 1)
+				occurrences = occurrences + freq - 1;
+		}
+		return occurrences;
 	}
 }

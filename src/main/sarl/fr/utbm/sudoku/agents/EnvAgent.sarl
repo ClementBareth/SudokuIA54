@@ -5,6 +5,8 @@ package fr.utbm.sudoku.agents
 
 import fr.utbm.sudoku.SudokuApplication
 import fr.utbm.sudoku.controllers.GridController
+import fr.utbm.sudoku.events.BlocReady
+import fr.utbm.sudoku.events.EcoTokenReleased
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.RegionAgentInitialized
 import fr.utbm.sudoku.events.RegionAgentSpawned
@@ -16,6 +18,7 @@ import fr.utbm.sudoku.events.SpawnRequired
 import fr.utbm.sudoku.events.UpdateSudoku
 import fr.utbm.sudoku.model.ContextContainer
 import fr.utbm.sudoku.model.RegionTypeEnum
+import fr.utbm.sudoku.model.Sudoku
 import io.sarl.core.Behaviors
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.ExternalContextAccess
@@ -43,6 +46,8 @@ agent EnvAgent {
 	var rowInit = new Integer(0);
 	var colInit = new Integer(0);
 	var updateLock = new ReentrantLock
+	var sudoku : Sudoku
+	var blocsReady = 0
 
 	on Initialize {
 		if (occurrence.parameters.length >= 2) {
@@ -54,6 +59,7 @@ agent EnvAgent {
 
 	on SpawnRequired {
 		this.controller = occurrence.controller
+		this.sudoku = occurrence.controller.sudoku.copy
 		info("Spawn command required")
 		for (var i = 0; i < 9; i++) {
 			RowAndColAgent.spawn(i, this.controller.sudoku.getRow(i), RegionTypeEnum.LIGNE)
@@ -114,8 +120,20 @@ agent EnvAgent {
 
 	on SolutionFoundInBloc {
 		updateLock.lock
+		sudoku.setValue(occurrence.x,occurrence.y,occurrence.solution)
 		openSpace.emit(new UpdateSudoku => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y; definitive = occurrence.definitive])
 		updateLock.unlock
+	}
+	
+	on EcoTokenReleased{
+		
+	}
+	
+	on BlocReady{
+		blocsReady ++
+		if(blocsReady == 9){
+			
+		}
 	}
 
 	on Exit [!isFromMe] {

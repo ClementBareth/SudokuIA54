@@ -4,6 +4,8 @@
 package fr.utbm.sudoku.agents
 
 import fr.utbm.sudoku.events.Algos
+import fr.utbm.sudoku.events.EcoTokenReceived
+import fr.utbm.sudoku.events.EcoTokenReleased
 import fr.utbm.sudoku.events.EcoValue
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.ReadyToResolve
@@ -48,7 +50,6 @@ agent BlocAgent {
 	var valuesLock = new ReentrantLock
 	var tokens = new ConcurrentHashMap<UUID, Integer>
 	var agentResolving : UUID = null
-	var nbTokenReleased = 0
 	var expectedTokens : Integer
 	var tokenReleasedLock = new ReentrantLock
 
@@ -143,24 +144,22 @@ agent BlocAgent {
 	/** 
 	 * Le token a été relâché par l'agent qui l'avait
 	 */
-	on TokenReleased [occurrence.source.UUID == agentResolving]{
+	on TokenReleased [occurrence.source.UUID == agentResolving] {
 		tokenReleasedLock.lock
 		if (occurrence.done) {
 			tokens.remove(occurrence.source.UUID)
 			agents.remove(occurrence.source.UUID)
 		}
-		nbTokenReleased++
-		if (this.nbTokenReleased == expectedTokens) {
-			nbTokenReleased = 0
-			var nb = tokens.get(occurrence.source.UUID)
-			if (nb !== null) {
-				nb++
-				tokens.put(occurrence.source.UUID, nb)
-			}
-			if (tokens.size > 0) {
-				sendToken(determineAgentToReceiveToken)
-			}
+
+		var nb = tokens.get(occurrence.source.UUID)
+		if (nb !== null) {
+			nb++
+			tokens.put(occurrence.source.UUID, nb)
 		}
+		if (tokens.size > 0) {
+			sendToken(determineAgentToReceiveToken)
+		}
+
 		tokenReleasedLock.unlock
 	}
 	/** 
@@ -172,5 +171,13 @@ agent BlocAgent {
 			tokens.put(occurrence.source.UUID, 1);
 			sendToken(occurrence.source.UUID)
 		}
+	}
+	
+	on EcoTokenReleased [!fromMe]{
+		
+	}
+	
+	on EcoTokenReceived [!fromMe]{
+		
 	}
 }

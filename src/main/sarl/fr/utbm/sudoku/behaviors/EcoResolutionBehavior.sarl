@@ -5,9 +5,10 @@ package fr.utbm.sudoku.behaviors
 
 import fr.utbm.sudoku.capacities.SudokuBaseCommunication
 import fr.utbm.sudoku.capacities.SudokuCommunication
+import fr.utbm.sudoku.events.EcoTokenReceived
+import fr.utbm.sudoku.events.EcoTokenReleased
 import fr.utbm.sudoku.events.EcoValue
 import fr.utbm.sudoku.events.SolutionFound
-import fr.utbm.sudoku.events.TokenReceived
 import fr.utbm.sudoku.events.TokenReleased
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
@@ -53,25 +54,25 @@ behavior EcoResolutionBehavior {
 		agentsValues.put(occurrence.source.UUID, occurrence.value)
 	}
 	
-	on TokenReleased [!fromMe && occurrence.done == true] {
+	on EcoTokenReleased [!fromMe && occurrence.done == true] {
 		var value = agentsValues.get(occurrence.source.UUID)
 		if(value !== null) candidates.remove(value)
 	}
 
 	// Si l'agent n'a qu'un seul candidat, c'est forcément la solution.
-	on TokenReceived [candidates.size == 1] {
+	on EcoTokenReceived [candidates.size == 1] {
 		changeValue(candidates.element)
 		emitToAllHolons(new SolutionFound => [solution = candidates.element; x = getX; y = getY])
 		emit(new TokenReleased => [done = true])
 	}
 
-	on TokenReceived [candidates.size == 0] {
+	on EcoTokenReceived [candidates.size == 0] {
 		error("Agent should not have received token")
 		emit(new TokenReleased => [done = true])
 	}
 
 	// Chaque agent recevra une fois le token pour intialiser sa valeur
-	on TokenReceived [!satisfied && candidates.size > 1] {
+	on EcoTokenReceived [!satisfied && candidates.size > 1] {
 		val cand = valuesWithLessOccurrences
 		if (cand.size > 0) {
 			changeValue(pollRandomValueFromList(cand))
@@ -81,7 +82,7 @@ behavior EcoResolutionBehavior {
 		emit(new TokenReleased)
 	}
 
-	on TokenReceived [satisfied] {
+	on EcoTokenReceived [satisfied] {
 		tokenReceivedSatisfiedLock.lock
 		nbUnchanged++
 		if (nbUnchanged > maxNbUnchanged) {
