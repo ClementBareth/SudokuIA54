@@ -6,10 +6,11 @@ package fr.utbm.sudoku.agents
 import fr.utbm.sudoku.SudokuApplication
 import fr.utbm.sudoku.controllers.GridController
 import fr.utbm.sudoku.events.BlocReady
-import fr.utbm.sudoku.events.EcoTokenReleased
+import fr.utbm.sudoku.events.EcoTokenReceived
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.RegionAgentInitialized
 import fr.utbm.sudoku.events.RegionAgentSpawned
+import fr.utbm.sudoku.events.ResetEcoValues
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.RowAndColInit
 import fr.utbm.sudoku.events.RowAndColSpawned
@@ -17,6 +18,7 @@ import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.SpawnRequired
 import fr.utbm.sudoku.events.UpdateSudoku
 import fr.utbm.sudoku.model.ContextContainer
+import fr.utbm.sudoku.model.Position
 import fr.utbm.sudoku.model.RegionTypeEnum
 import fr.utbm.sudoku.model.Sudoku
 import io.sarl.core.Behaviors
@@ -25,15 +27,20 @@ import io.sarl.core.ExternalContextAccess
 import io.sarl.core.Initialize
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
+import io.sarl.core.Schedules
+import io.sarl.lang.core.Address
 import io.sarl.util.OpenEventSpace
+import io.sarl.util.Scopes
 import java.util.ArrayList
+import java.util.HashSet
+import java.util.List
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 
 agent EnvAgent {
 
-	uses Logging, ExternalContextAccess, DefaultContextInteractions, Behaviors, Lifecycle
+	uses Logging, ExternalContextAccess, DefaultContextInteractions, Behaviors, Lifecycle, Schedules
 
 	var app : SudokuApplication
 
@@ -41,13 +48,18 @@ agent EnvAgent {
 
 	val rowCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
 	val colCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
+	val blocs = new ConcurrentHashMap<Position, UUID>
 	var openSpace : OpenEventSpace
 
 	var rowInit = new Integer(0);
 	var colInit = new Integer(0);
 	var updateLock = new ReentrantLock
+	var sendLock = new ReentrantLock
 	var sudoku : Sudoku
 	var blocsReady = 0
+	var blocageValue = 30
+	var compteurBlocage = 0
+	var oldBloc : Position
 
 	on Initialize {
 		if (occurrence.parameters.length >= 2) {
@@ -60,7 +72,6 @@ agent EnvAgent {
 	on SpawnRequired {
 		this.controller = occurrence.controller
 		this.sudoku = occurrence.controller.sudoku.copy
-		info("Spawn command required")
 		for (var i = 0; i < 9; i++) {
 			RowAndColAgent.spawn(i, this.controller.sudoku.getRow(i), RegionTypeEnum.LIGNE)
 			RowAndColAgent.spawn(i, this.controller.sudoku.getColumn(i), RegionTypeEnum.COLONNE)
@@ -68,13 +79,12 @@ agent EnvAgent {
 	}
 
 	on RowAndColSpawned {
-		var blocs = new ArrayList<UUID>
 		for (var i = 0; i < 9; i++) {
 			for (var j = 0; j < 9; j++) {
 				var startI = i - 2
 				var startJ = j - 2
 				if (startI % 3 === 0 && startJ % 3 === 0) {
-					blocs.add(
+					blocs.put(new Position(startI, startJ),
 						BlocAgent.spawn(startI, startJ, this.controller.sudoku.getBloc(startI, i, startJ, j), rowCtxIds,
 							colCtxIds))
 				}
@@ -120,20 +130,67 @@ agent EnvAgent {
 
 	on SolutionFoundInBloc {
 		updateLock.lock
-		sudoku.setValue(occurrence.x,occurrence.y,occurrence.solution)
-		openSpace.emit(new UpdateSudoku => [solution = occurrence.solution; x = occurrence.x; y = occurrence.y; definitive = occurrence.definitive])
-		updateLock.unlock
-	}
-	
-	on EcoTokenReleased{
-		
-	}
-	
-	on BlocReady{
-		blocsReady ++
-		if(blocsReady == 9){
-			
+		if (occurrence.solution == 0) {
+			sudoku.setValue(occurrence.x, occurrence.y, null)
+			openSpace.emit(new UpdateSudoku => [
+				solution = null;
+				x = occurrence.x;
+				y = occurrence.y;
+				definitive = occurrence.definitive
+			])
+		} else {
+			sudoku.setValue(occurrence.x, occurrence.y, occurrence.solution)
+			openSpace.emit(new UpdateSudoku => [
+				solution = occurrence.solution;
+				x = occurrence.x;
+				y = occurrence.y;
+				definitive = occurrence.definitive
+			])
 		}
+		updateLock.unlock
+		if (occurrence.tokenReleased) {
+			sendToNextBloc
+		}
+	}
+
+	on BlocReady {
+		blocsReady++
+		if (blocsReady == 9) {
+			sendToNextBloc
+		}
+	}
+
+	def sendToNextBloc {
+		sendLock.lock
+		val bloc = sudoku.blocWithMostDoublons
+		if (!bloc.equals(oldBloc)) {
+			oldBloc = bloc
+			compteurBlocage = 0
+		} else {
+			compteurBlocage++
+		}
+		if (compteurBlocage >= blocageValue) {
+			var e = new ResetEcoValues
+			var listBlocs = new HashSet<Position>
+			listBlocs.addAll(getBlocsForRow(oldBloc.x))
+			listBlocs.addAll(getBlocsForCol(oldBloc.y))
+			var addresses = new ArrayList<Address>
+			for (b : listBlocs) {
+				var id = blocs.get(b)
+				addresses.add(defaultSpace.getAddress(id))
+			}
+//			e.emit(Scopes.addresses(addresses))
+			compteurBlocage = 0
+		} else {
+			var id = blocs.get(bloc)
+			if (id !== null) {
+				var e = new EcoTokenReceived
+				in(1)[e.emit(Scopes.addresses(defaultSpace.getAddress(id)))]
+			} else {
+				error("Bloc inconnu : " + bloc)
+			}
+		}
+		sendLock.unlock
 	}
 
 	on Exit [!isFromMe] {
@@ -141,4 +198,23 @@ agent EnvAgent {
 		killMe
 	}
 
+	def getBlocsForRow(row : int) : List<Position> {
+		var list = new ArrayList<Position>
+		for (bloc : blocs.keySet) {
+			if (bloc.x == row) {
+				list.add(bloc)
+			}
+		}
+		return list
+	}
+
+	def getBlocsForCol(col : int) : List<Position> {
+		var list = new ArrayList<Position>
+		for (bloc : blocs.keySet) {
+			if (bloc.y == col) {
+				list.add(bloc)
+			}
+		}
+		return list
+	}
 }

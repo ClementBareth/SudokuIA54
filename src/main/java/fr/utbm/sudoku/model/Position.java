@@ -51,5 +51,9 @@ public class Position {
 		return true;
 	}
 	
+	@Override
+	public String toString() {
+		return "x : "+x+", y : "+y;
+	}
 	
 }

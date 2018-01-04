@@ -21,7 +21,7 @@ public class Sudoku {
 	}
 
 	public void setValue(int x, int y, Integer value) {
-		this.matrix[x][y] = value;
+		this.matrix[y][x] = value;
 	}
 
 	public Difficulty getDifficulty() {
@@ -71,33 +71,111 @@ public class Sudoku {
 
 	public Sudoku copy() {
 		Sudoku newSudoku = new Sudoku();
-		newSudoku.matrix = this.matrix;
+		newSudoku.matrix = new Integer[9][9];
+		for (int i = 0; i < 9; i++) {
+			for (int j = 0; j < 9; j++) {
+				Integer value = this.matrix[i][j];
+				if (value == null) {
+					newSudoku.matrix[i][j] = null;
+				} else {
+					newSudoku.matrix[i][j] = new Integer(this.matrix[i][j].intValue());
+				}
+			}
+		}
 		newSudoku.difficulty = this.difficulty;
 		return newSudoku;
 	}
 
 	public Position getBlocWithMostDoublons() {
-		HashMap<Integer, Integer> rowsDoublons = new HashMap<>();
-		HashMap<Integer, Integer> colsDoublons = new HashMap<>();
+		Position nullValue = getNullValue();
+		int row = 0;
+		int col = 0;
+		if (nullValue == null) {
+			HashMap<Position, Integer> blocsDoublons = new HashMap<>();
+			for (int i = 0; i < 9; i++) {
+				for (int j = 0; j < 9; j++) {
+					int startI = i - 2;
+					int startJ = j - 2;
+					if (startI % 3 == 0 && startJ % 3 == 0) {
+						blocsDoublons.put(new Position(startI, startJ),
+								new Integer(evaluateDoublons(startI, i, startJ, j)));
+					}
+				}
+			}
+			if (!blocsDoublons.isEmpty()) {
+				Integer maxInBlocs = Collections.max(blocsDoublons.values());
+				List<Position> blocs = new ArrayList<>();
+				for (Entry<Position, Integer> e : blocsDoublons.entrySet()) {
+					if (e.getValue().equals(maxInBlocs)) {
+						blocs.add(e.getKey());
+					}
+				}
+				Collections.shuffle(blocs);
+				return blocs.get(0);
+			} else {
+				HashMap<Integer, Integer> rowsDoublons = new HashMap<>();
+				HashMap<Integer, Integer> colsDoublons = new HashMap<>();
+				for (int i = 0; i < 9; i++) {
+					rowsDoublons.put(new Integer(i), new Integer(evaluateDoublons(RegionTypeEnum.LIGNE, i)));
+					colsDoublons.put(new Integer(i), new Integer(evaluateDoublons(RegionTypeEnum.COLONNE, i)));
+				}
+				Integer maxInRows = Collections.max(rowsDoublons.values());
+				Integer maxInCols = Collections.max(colsDoublons.values());
+				List<Integer> xs = new ArrayList<>();
+				List<Integer> ys = new ArrayList<>();
+
+				for (Entry<Integer, Integer> e : rowsDoublons.entrySet()) {
+					if (e.getValue().equals(maxInRows)) {
+						xs.add(new Integer(e.getKey().intValue()));
+					}
+				}
+				for (Entry<Integer, Integer> e : colsDoublons.entrySet()) {
+					if (e.getValue().equals(maxInCols)) {
+						ys.add(new Integer(e.getKey().intValue()));
+					}
+				}
+				
+				// TODO traiter cas où une des deux listes est vide
+				Collections.shuffle(xs);
+				row = xs.get(0).intValue() / 3;
+				Collections.shuffle(ys);
+				col = ys.get(0).intValue() / 3;
+			}
+		} else {
+			row = nullValue.getX() / 3;
+			col = nullValue.getY() / 3;
+		}
+		return new Position(row * 3, col * 3);
+	}
+
+	public Position getNullValue() {
 		for (int i = 0; i < 9; i++) {
-			rowsDoublons.put(new Integer(i), new Integer(evaluateDoublons(RegionTypeEnum.LIGNE, i)));
-			colsDoublons.put(new Integer(i), new Integer(evaluateDoublons(RegionTypeEnum.COLONNE, i)));
-		}
-		Integer maxInRows = Collections.max(rowsDoublons.values());
-		Integer maxInCols = Collections.max(colsDoublons.values());
-		int x = 0;
-		int y = 0;
-		for (Entry<Integer, Integer> e : rowsDoublons.entrySet()) {
-			if (e.getValue().equals(maxInRows)) {
-				x = e.getKey().intValue();
+			List<Integer> row = getRow(i);
+			int col = 0;
+			for (Integer value : row) {
+				if (value == null) {
+					return new Position(i, col);
+				} else {
+					col++;
+				}
 			}
 		}
-		for (Entry<Integer, Integer> e : colsDoublons.entrySet()) {
-			if (e.getValue().equals(maxInCols)) {
-				y = e.getKey().intValue();
-			}
+		return null;
+	}
+
+	private int evaluateDoublons(int startI, int i, int startJ, int j) {
+		List<Integer> values = getBloc(startI, i, startJ, j);
+		return getDoublons(values);
+	}
+
+	private int getDoublons(List<Integer> values) {
+		int occurrences = 0;
+		for (int i = 1; i <= 9; i++) {
+			int freq = Collections.frequency(values, new Integer(i));
+			if (freq > 1)
+				occurrences = occurrences + freq - 1;
 		}
-		return new Position(x / 3, y / 3);
+		return occurrences;
 	}
 
 	private int evaluateDoublons(RegionTypeEnum type, int number) {
@@ -112,12 +190,18 @@ public class Sudoku {
 		default:
 			break;
 		}
-		int occurrences = 0;
-		for (int i = 1; i <= 9; i++) {
-			int freq = Collections.frequency(values, new Integer(i));
-			if (freq > 1)
-				occurrences = occurrences + freq - 1;
+		return getDoublons(values);
+	}
+
+	@Override
+	public String toString() {
+		String str = "\n";
+		for (int i = 0; i < 9; i++) {
+			for (int j = 0; j < 9; j++) {
+				str += matrix[j][i] + " ";
+			}
+			str += "\n";
 		}
-		return occurrences;
+		return str;
 	}
 }

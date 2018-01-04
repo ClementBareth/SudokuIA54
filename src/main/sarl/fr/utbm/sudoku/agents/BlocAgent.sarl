@@ -4,11 +4,13 @@
 package fr.utbm.sudoku.agents
 
 import fr.utbm.sudoku.events.Algos
+import fr.utbm.sudoku.events.BlocReady
 import fr.utbm.sudoku.events.EcoTokenReceived
 import fr.utbm.sudoku.events.EcoTokenReleased
 import fr.utbm.sudoku.events.EcoValue
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.ReadyToResolve
+import fr.utbm.sudoku.events.ResetEcoValues
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SolutionFound
 import fr.utbm.sudoku.events.SolutionFoundInBloc
@@ -33,7 +35,6 @@ import java.util.List
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
-
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
  * 
@@ -52,6 +53,8 @@ agent BlocAgent {
 	var agentResolving : UUID = null
 	var expectedTokens : Integer
 	var tokenReleasedLock = new ReentrantLock
+	var ecoTokens = new ConcurrentHashMap<UUID, Integer>
+	var spawner : UUID
 
 	on Initialize {
 		if (occurrence.parameters.length >= 5) {
@@ -62,6 +65,7 @@ agent BlocAgent {
 			this.colCtxIds = occurrence.parameters.get(4) as ConcurrentHashMap<Integer, ContextContainer>
 			loggingName = "Bloc n°(" + startRow + "," + startCol + ")"
 		}
+		spawner = occurrence.spawner
 		for (var i = 0; i < 9; i++) {
 			if (blocValues.get(i) === null || blocValues.get(i) == 0) {
 				var row = startRow + i / 3 as Integer
@@ -94,20 +98,11 @@ agent BlocAgent {
 				solution = occurrence.solution;
 				x = occurrence.x;
 				y = occurrence.y;
-				definitive = true
+				definitive = true;
 			])
 		} else {
 			valuesLock.unlock
 		}
-	}
-
-	on EcoValue {
-		emit(new SolutionFoundInBloc => [
-			solution = occurrence.value;
-			x = occurrence.x;
-			y = occurrence.y;
-			definitive = false
-		])
 	}
 
 	on Exit {
@@ -167,17 +162,64 @@ agent BlocAgent {
 	 */
 	on ReadyToResolve {
 		tokens.put(occurrence.source.UUID, 0);
+		ecoTokens.put(occurrence.source.UUID, 0);
 		if (tokens.size == innerContext.defaultSpace.participants.size - 1) {
+			emit(new BlocReady)
 			tokens.put(occurrence.source.UUID, 1);
-			sendToken(occurrence.source.UUID)
+			sendToken(occurrence.source.UUID);
 		}
 	}
-	
-	on EcoTokenReleased [!fromMe]{
-		
+
+	// Partie concernant l'éco-résolution
+	def determineEcoAgent : UUID {
+		var min = Collections.min(ecoTokens.values)
+		for (entry : ecoTokens.entrySet) {
+			if (entry.value == min) {
+				return entry.key
+			}
+		}
 	}
-	
-	on EcoTokenReceived [!fromMe]{
-		
+
+	def sendEcoToken(id : UUID) {
+		if (id === null) {
+			error("L'id est null : " + ecoTokens)
+		} else {
+			var nb = ecoTokens.get(id)
+			nb++
+			ecoTokens.replace(id, nb)
+			wake(
+				new EcoTokenReceived,
+				Scopes.addresses(innerContext.defaultSpace.getAddress(id))
+			)
+		}
+	}
+
+	on EcoTokenReleased [!fromMe] {
+		if (occurrence.done) {
+			ecoTokens.remove(occurrence.source.UUID)
+		} 
+		if (occurrence.changed == true) {
+//			emit(new EcoTokenReleased, Scopes.addresses(defaultSpace.getAddress(spawner)))
+		} else {
+			sendEcoToken(determineEcoAgent)
+		}
+	}
+
+	on EcoTokenReceived [!fromMe] {
+		sendEcoToken(determineEcoAgent)
+	}
+
+	on EcoValue {
+		emit(new SolutionFoundInBloc => [
+			solution = occurrence.value;
+			x = occurrence.x;
+			y = occurrence.y;
+			definitive = false;
+			tokenReleased = true;
+		])
+	}
+
+	on ResetEcoValues [!fromMe] {
+		wake(new ResetEcoValues)
 	}
 }

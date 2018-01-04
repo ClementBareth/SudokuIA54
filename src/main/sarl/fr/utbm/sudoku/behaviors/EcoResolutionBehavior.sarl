@@ -8,8 +8,9 @@ import fr.utbm.sudoku.capacities.SudokuCommunication
 import fr.utbm.sudoku.events.EcoTokenReceived
 import fr.utbm.sudoku.events.EcoTokenReleased
 import fr.utbm.sudoku.events.EcoValue
+import fr.utbm.sudoku.events.ResetEcoValues
 import fr.utbm.sudoku.events.SolutionFound
-import fr.utbm.sudoku.events.TokenReleased
+import fr.utbm.sudoku.model.RegionTypeEnum
 import io.sarl.core.DefaultContextInteractions
 import io.sarl.core.Initialize
 import io.sarl.core.Logging
@@ -36,8 +37,10 @@ behavior EcoResolutionBehavior {
 	var private candidates : ConcurrentLinkedQueue<Integer>
 	var private actualValue = new Integer(0)
 	var agentsValues = new ConcurrentHashMap<UUID, Integer>
+	var blocValues = new ConcurrentHashMap<UUID, Integer>
+
 	var nbUnchanged = 0
-	val maxNbUnchanged = 200
+	val maxNbUnchanged = 30000
 	var tokenReceivedSatisfiedLock = new ReentrantLock
 
 	on Initialize {
@@ -52,8 +55,13 @@ behavior EcoResolutionBehavior {
 
 	on EcoValue [!isFromMe] {
 		agentsValues.put(occurrence.source.UUID, occurrence.value)
+		var regions = determineRegion(occurrence.x, occurrence.y)
+
+		if (regions.contains(RegionTypeEnum.BLOC)) {
+			blocValues.put(occurrence.source.UUID, occurrence.value)
+		}
 	}
-	
+
 	on EcoTokenReleased [!fromMe && occurrence.done == true] {
 		var value = agentsValues.get(occurrence.source.UUID)
 		if(value !== null) candidates.remove(value)
@@ -61,39 +69,47 @@ behavior EcoResolutionBehavior {
 
 	// Si l'agent n'a qu'un seul candidat, c'est forcément la solution.
 	on EcoTokenReceived [candidates.size == 1] {
-		changeValue(candidates.element)
+		changeValue(candidates.element, true)
 		emitToAllHolons(new SolutionFound => [solution = candidates.element; x = getX; y = getY])
-		emit(new TokenReleased => [done = true])
+		emit(new EcoTokenReleased => [done = true; changed = true])
 	}
 
 	on EcoTokenReceived [candidates.size == 0] {
 		error("Agent should not have received token")
-		emit(new TokenReleased => [done = true])
+		emit(new EcoTokenReleased => [done = true; changed = false])
+	}
+	
+	on ResetEcoValues{
+		changeValue(0, false)
 	}
 
 	// Chaque agent recevra une fois le token pour intialiser sa valeur
 	on EcoTokenReceived [!satisfied && candidates.size > 1] {
+//		 val cand = new ArrayList(candidates)
+//		 cand.remove(actualValue)
 		val cand = valuesWithLessOccurrences
 		if (cand.size > 0) {
-			changeValue(pollRandomValueFromList(cand))
+			changeValue(pollRandomValueFromList(cand), true)
+			emit(new EcoTokenReleased => [done = false; changed = true])
 		} else {
+			emit(new EcoTokenReleased => [done = false; changed = false])
 			error("No candidates availables")
 		}
-		emit(new TokenReleased)
 	}
 
 	on EcoTokenReceived [satisfied] {
-		tokenReceivedSatisfiedLock.lock
-		nbUnchanged++
-		if (nbUnchanged > maxNbUnchanged) {
-			emitToAllHolons(new SolutionFound => [solution = candidates.element; x = getX; y = getY])
-//			candidates.clear
-			emit(new TokenReleased => [done = true])
-		} else {
-			emit(new TokenReleased)
-			
-		}
-		tokenReceivedSatisfiedLock.unlock
+		 emit(new EcoTokenReleased => [done = false; changed = false])
+		
+//		tokenReceivedSatisfiedLock.lock
+//		nbUnchanged++
+//		if (nbUnchanged > maxNbUnchanged) {
+//			emitToAllHolons(new SolutionFound => [solution = candidates.element; x = getX; y = getY])
+//			emit(new EcoTokenReleased => [done = true; changed = false])
+//		} else {
+//			emit(new EcoTokenReleased => [done = false; changed = false])
+//
+//		}
+//		tokenReceivedSatisfiedLock.unlock
 	}
 
 	def private satisfied : boolean {
@@ -113,15 +129,18 @@ behavior EcoResolutionBehavior {
 		return list;
 	}
 
-	def changeValue(value : int) {
-//		info(actualValue + " => " + value)
+	def changeValue(value : int, tokenRealease : boolean) {
 		nbUnchanged = 0
 		actualValue = value
-		emitToAllHolons(new EcoValue => [x = getX; y = getY; value = actualValue])
+		// emit(new EcoValue => [x = getX; y = getY; value = actualValue])
+		emitToAllHolons(new EcoValue => [x = getX; y = getY; value = actualValue;  token = tokenRealease])
 	}
 
 	def private countOccurrences(candidate : Integer) : Integer {
-		return Collections.frequency(agentsValues.values, candidate)
+		var freq = Collections.frequency(agentsValues.values, candidate)
+		if(blocValues.containsValue(candidate)) return freq * 10 
+		if(actualValue.equals(candidate)) return freq * 20
+		else return freq;
 	}
 
 	def private getOccurrencesMap : Map<Integer, Integer> {

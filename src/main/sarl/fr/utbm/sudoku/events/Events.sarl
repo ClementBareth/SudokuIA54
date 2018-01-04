@@ -27,6 +27,7 @@ event EcoValue {
 	var value : Integer
 	var x : Integer
 	var y : Integer
+	var token : boolean
 }
 
 event SpawnRequired {
@@ -55,7 +56,10 @@ event EcoTokenReceived
 
 event EcoTokenReleased{
 	var done : boolean
+	var changed : boolean
 }
+
+event ResetEcoValues
 
 event RegionAgentInitialized {
 	var id : UUID
@@ -117,6 +121,7 @@ event SolutionFoundInBloc {
 	var x : Integer
 	var y : Integer
 	var definitive : boolean
+	var tokenReleased : boolean
 }
 
 event UpdateSudoku {

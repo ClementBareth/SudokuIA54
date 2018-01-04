@@ -145,7 +145,8 @@ class GridController implements Initializable, EventListener {
 
 	def setLabel(x : Integer, y : Integer, value : Integer) {
 		var label = getLabelAt(x, y)
-		label.text = "" + value
+		if (value === null) label.text = ""
+		else label.text = "" + value
 	}
 
 	def getLabelAt(x : Integer, y : Integer) : Label {
