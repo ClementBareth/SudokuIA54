@@ -86,7 +86,7 @@ agent CellAgent {
 
 	on Algos {
 		this.algos.addAll(occurrence.algos)
-		if (occurrence.algos.contains(Algorithms.NUDE_SINGLETONS)) {
+		if (occurrence.algos.contains(Algorithms.NUDE_SINGLETONS) && !occurrence.algos.contains(Algorithms.ECO_RESOLUTION)) {
 			registerBehavior(nudeSingletonBehavior)
 		} 
 		if (occurrence.algos.contains(Algorithms.HIDDEN_SINGLETONS)) {

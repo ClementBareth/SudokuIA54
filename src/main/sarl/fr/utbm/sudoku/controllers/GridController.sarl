@@ -6,6 +6,7 @@ package fr.utbm.sudoku.controllers
 import fr.utbm.sudoku.SudokuApplication
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.SpawnRequired
+import fr.utbm.sudoku.events.Stop
 import fr.utbm.sudoku.events.UpdateSudoku
 import fr.utbm.sudoku.model.Algorithms
 import fr.utbm.sudoku.model.Sudoku
@@ -91,6 +92,7 @@ class GridController implements Initializable, EventListener {
 	@FXML
 	def openHome {
 		app.openHomeStage
+		emitToAgents(new Stop)
 	}
 	
 	@FXML

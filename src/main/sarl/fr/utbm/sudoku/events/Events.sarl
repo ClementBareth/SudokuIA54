@@ -131,6 +131,8 @@ event UpdateSudoku {
 	var definitive : boolean
 }
 
+event Stop
+
 event ReadyToResolve{
 }
 

@@ -16,6 +16,7 @@ import fr.utbm.sudoku.events.RowAndColInit
 import fr.utbm.sudoku.events.RowAndColSpawned
 import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.SpawnRequired
+import fr.utbm.sudoku.events.Stop
 import fr.utbm.sudoku.events.UpdateSudoku
 import fr.utbm.sudoku.model.ContextContainer
 import fr.utbm.sudoku.model.Position
@@ -46,9 +47,9 @@ agent EnvAgent {
 
 	var controller : GridController
 
-	val rowCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
-	val colCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
-	val blocs = new ConcurrentHashMap<Position, UUID>
+	var rowCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
+	var colCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
+	var blocs = new ConcurrentHashMap<Position, UUID>
 	var openSpace : OpenEventSpace
 
 	var rowInit = new Integer(0);
@@ -121,6 +122,7 @@ agent EnvAgent {
 	}
 
 	on Resolve [!isFromMe] {
+		info(occurrence.algos)
 		emit(new Resolve => [algos = occurrence.algos])
 	}
 
@@ -179,7 +181,7 @@ agent EnvAgent {
 				var id = blocs.get(b)
 				addresses.add(defaultSpace.getAddress(id))
 			}
-//			e.emit(Scopes.addresses(addresses))
+			// e.emit(Scopes.addresses(addresses))
 			compteurBlocage = 0
 		} else {
 			var id = blocs.get(bloc)
@@ -196,6 +198,18 @@ agent EnvAgent {
 	on Exit [!isFromMe] {
 		emit(new Exit)
 		killMe
+	}
+
+	on Stop {
+		emit(new Exit)
+		rowInit = new Integer(0);
+		colInit = new Integer(0);
+		rowCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
+		colCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
+		blocs = new ConcurrentHashMap<Position, UUID>
+		blocsReady = 0
+		blocageValue = 30
+		compteurBlocage = 0
 	}
 
 	def getBlocsForRow(row : int) : List<Position> {
@@ -216,5 +230,8 @@ agent EnvAgent {
 			}
 		}
 		return list
+	}
+
+	def init {
 	}
 }
