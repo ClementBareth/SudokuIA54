@@ -3,9 +3,8 @@
  */
 package fr.utbm.sudoku.events
 
-import fr.utbm.sudoku.controllers.GridController
+import fr.utbm.sudoku.controllers.Controller
 import fr.utbm.sudoku.model.Algorithms
-import fr.utbm.sudoku.model.EcoAgentRepresentation
 import fr.utbm.sudoku.model.RegionTypeEnum
 import fr.utbm.sudoku.model.Sudoku
 import io.sarl.lang.core.EventSpace
@@ -23,6 +22,10 @@ event SubmitSudoku {
 	var sudoku : Sudoku
 }
 
+event SudokuResolved{
+	
+}
+
 event EcoValue {
 	var value : Integer
 	var x : Integer
@@ -31,7 +34,7 @@ event EcoValue {
 }
 
 event SpawnRequired {
-	var controller : GridController
+	var controller : Controller
 }
 
 event EcoResolve{

@@ -43,7 +43,7 @@ import java.util.concurrent.locks.ReentrantLock
  * 
  */
 agent CellAgent {
-	uses Logging, ExternalContextAccess, DefaultContextInteractions, SudokuMaths, Behaviors, Lifecycle, SudokuCommunication
+	uses Logging, ExternalContextAccess, DefaultContextInteractions, SudokuMaths, Behaviors, Lifecycle
 
 	var x : Integer
 	var y : Integer
@@ -86,14 +86,20 @@ agent CellAgent {
 
 	on Algos {
 		this.algos.addAll(occurrence.algos)
-		if (occurrence.algos.contains(Algorithms.NUDE_SINGLETONS) && !occurrence.algos.contains(Algorithms.ECO_RESOLUTION)) {
+		if (occurrence.algos.contains(Algorithms.NUDE_SINGLETONS) &&
+			!occurrence.algos.contains(Algorithms.ECO_RESOLUTION)) {
 			registerBehavior(nudeSingletonBehavior)
-		} 
+		}
 		if (occurrence.algos.contains(Algorithms.HIDDEN_SINGLETONS)) {
 			registerBehavior(hiddenSingletonBehavior)
 		}
 		if (occurrence.algos.contains(Algorithms.ECO_RESOLUTION)) {
-			registerBehavior(ecoResolveBehavior)
+			try {
+				registerBehavior(ecoResolveBehavior)
+			} catch (e : Exception) {
+				ecoResolveBehavior = new EcoResolutionBehavior(this, candidates, commSkill)
+				registerBehavior(ecoResolveBehavior)
+			}
 		}
 	}
 

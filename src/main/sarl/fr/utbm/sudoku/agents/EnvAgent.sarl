@@ -4,19 +4,20 @@
 package fr.utbm.sudoku.agents
 
 import fr.utbm.sudoku.SudokuApplication
-import fr.utbm.sudoku.controllers.GridController
+import fr.utbm.sudoku.controllers.Controller
+import fr.utbm.sudoku.controllers.GenerationController
 import fr.utbm.sudoku.events.BlocReady
 import fr.utbm.sudoku.events.EcoTokenReceived
 import fr.utbm.sudoku.events.Exit
 import fr.utbm.sudoku.events.RegionAgentInitialized
 import fr.utbm.sudoku.events.RegionAgentSpawned
-import fr.utbm.sudoku.events.ResetEcoValues
 import fr.utbm.sudoku.events.Resolve
 import fr.utbm.sudoku.events.RowAndColInit
 import fr.utbm.sudoku.events.RowAndColSpawned
 import fr.utbm.sudoku.events.SolutionFoundInBloc
 import fr.utbm.sudoku.events.SpawnRequired
 import fr.utbm.sudoku.events.Stop
+import fr.utbm.sudoku.events.SudokuResolved
 import fr.utbm.sudoku.events.UpdateSudoku
 import fr.utbm.sudoku.model.ContextContainer
 import fr.utbm.sudoku.model.Position
@@ -29,11 +30,9 @@ import io.sarl.core.Initialize
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.core.Schedules
-import io.sarl.lang.core.Address
 import io.sarl.util.OpenEventSpace
 import io.sarl.util.Scopes
 import java.util.ArrayList
-import java.util.HashSet
 import java.util.List
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -45,7 +44,7 @@ agent EnvAgent {
 
 	var app : SudokuApplication
 
-	var controller : GridController
+	var controller : Controller
 
 	var rowCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
 	var colCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
@@ -57,10 +56,7 @@ agent EnvAgent {
 	var updateLock = new ReentrantLock
 	var sendLock = new ReentrantLock
 	var sudoku : Sudoku
-	var blocsReady = 0
-	var blocageValue = 30
-	var compteurBlocage = 0
-	var oldBloc : Position
+	var blocsReady = 0	
 
 	on Initialize {
 		if (occurrence.parameters.length >= 2) {
@@ -71,8 +67,10 @@ agent EnvAgent {
 	}
 
 	on SpawnRequired {
+		info("Initialisation des agents lignes et colonne")
 		this.controller = occurrence.controller
 		this.sudoku = occurrence.controller.sudoku.copy
+		info("Sudoku : " + sudoku)
 		for (var i = 0; i < 9; i++) {
 			RowAndColAgent.spawn(i, this.controller.sudoku.getRow(i), RegionTypeEnum.LIGNE)
 			RowAndColAgent.spawn(i, this.controller.sudoku.getColumn(i), RegionTypeEnum.COLONNE)
@@ -80,6 +78,13 @@ agent EnvAgent {
 	}
 
 	on RowAndColSpawned {
+		info("Initialisation des agents blocs")
+		var IsGeneration : Integer
+		if (this.controller instanceof GenerationController) {
+			IsGeneration = new Integer(1)
+		} else {
+			IsGeneration = new Integer(0)
+		}
 		for (var i = 0; i < 9; i++) {
 			for (var j = 0; j < 9; j++) {
 				var startI = i - 2
@@ -87,7 +92,7 @@ agent EnvAgent {
 				if (startI % 3 === 0 && startJ % 3 === 0) {
 					blocs.put(new Position(startI, startJ),
 						BlocAgent.spawn(startI, startJ, this.controller.sudoku.getBloc(startI, i, startJ, j), rowCtxIds,
-							colCtxIds))
+							colCtxIds, IsGeneration))
 				}
 			}
 		}
@@ -111,18 +116,16 @@ agent EnvAgent {
 		if (occurrence.type.equals(RegionTypeEnum.LIGNE)) {
 			rowInit++
 		}
-		if (occurrence.type.equals(RegionTypeEnum.LIGNE)) {
+		if (occurrence.type.equals(RegionTypeEnum.COLONNE)) {
 			colInit++
 		}
-		var rows = rowInit
-		var cols = colInit
-		if (rows.equals(9) && cols.equals(9)) {
+		if (rowInit.equals(9) && colInit.equals(9)) {
 			wake(new RowAndColInit)
 		}
 	}
 
 	on Resolve [!isFromMe] {
-		info(occurrence.algos)
+		info("Algorithmes choisis : " + occurrence.algos)
 		emit(new Resolve => [algos = occurrence.algos])
 	}
 
@@ -149,6 +152,11 @@ agent EnvAgent {
 				definitive = occurrence.definitive
 			])
 		}
+		val bloc = sudoku.blocWithMostDoublons
+		if (bloc === null) {
+			openSpace.emit(new SudokuResolved)
+		}
+
 		updateLock.unlock
 		if (occurrence.tokenReleased) {
 			sendToNextBloc
@@ -165,32 +173,12 @@ agent EnvAgent {
 	def sendToNextBloc {
 		sendLock.lock
 		val bloc = sudoku.blocWithMostDoublons
-		if (!bloc.equals(oldBloc)) {
-			oldBloc = bloc
-			compteurBlocage = 0
+		var id = blocs.get(bloc)
+		if (id !== null) {
+			var e = new EcoTokenReceived
+			in(1)[e.emit(Scopes.addresses(defaultSpace.getAddress(id)))]
 		} else {
-			compteurBlocage++
-		}
-		if (compteurBlocage >= blocageValue) {
-			var e = new ResetEcoValues
-			var listBlocs = new HashSet<Position>
-			listBlocs.addAll(getBlocsForRow(oldBloc.x))
-			listBlocs.addAll(getBlocsForCol(oldBloc.y))
-			var addresses = new ArrayList<Address>
-			for (b : listBlocs) {
-				var id = blocs.get(b)
-				addresses.add(defaultSpace.getAddress(id))
-			}
-			// e.emit(Scopes.addresses(addresses))
-			compteurBlocage = 0
-		} else {
-			var id = blocs.get(bloc)
-			if (id !== null) {
-				var e = new EcoTokenReceived
-				in(1)[e.emit(Scopes.addresses(defaultSpace.getAddress(id)))]
-			} else {
-				error("Bloc inconnu : " + bloc)
-			}
+			error("Bloc inconnu : " + bloc)
 		}
 		sendLock.unlock
 	}
@@ -208,8 +196,6 @@ agent EnvAgent {
 		colCtxIds = new ConcurrentHashMap<Integer, ContextContainer>
 		blocs = new ConcurrentHashMap<Position, UUID>
 		blocsReady = 0
-		blocageValue = 30
-		compteurBlocage = 0
 	}
 
 	def getBlocsForRow(row : int) : List<Position> {

@@ -1,6 +1,7 @@
 package fr.utbm.sudoku.dao
 
 import fr.utbm.sudoku.model.Difficulty
+import fr.utbm.sudoku.model.ResourceAccessor
 import fr.utbm.sudoku.model.Sudoku
 import java.util.ArrayList
 import java.util.List
@@ -15,9 +16,14 @@ class NitriteManager {
 	var repository : ObjectRepository<Sudoku>
 	
 	def initDB{
-		var workingDir = System.getProperty("user.dir")
+		var path = ResourceAccessor.getDemoFile.absolutePath
+//		var workingDir = new File(".").getAbsolutePath()
+		//System.getProperty("user.dir")
 		db = Nitrite.builder().compressed()
-		.filePath(workingDir+"/data/sudoku.db")
+		.filePath(
+		/* workingDir+
+		 */
+		path)
         .openOrCreate("user", "password");
 		repository = db.getRepository(Sudoku);
 	}

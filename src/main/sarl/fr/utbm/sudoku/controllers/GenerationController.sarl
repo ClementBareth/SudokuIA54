@@ -1,0 +1,165 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.controllers
+
+import fr.utbm.sudoku.SudokuApplication
+import fr.utbm.sudoku.events.Resolve
+import fr.utbm.sudoku.events.SpawnRequired
+import fr.utbm.sudoku.events.SudokuResolved
+import fr.utbm.sudoku.events.UpdateSudoku
+import fr.utbm.sudoku.model.Algorithms
+import fr.utbm.sudoku.model.Sudoku
+import fr.utbm.sudoku.view.SudokuView
+import io.sarl.lang.core.Event
+import io.sarl.lang.core.EventListener
+import io.sarl.util.OpenEventSpace
+import java.net.URL
+import java.util.ArrayList
+import java.util.Optional
+import java.util.Random
+import java.util.ResourceBundle
+import java.util.UUID
+import javafx.^event.ActionEvent
+import javafx.fxml.FXML
+import javafx.fxml.Initializable
+import javafx.scene.control.Button
+import javafx.scene.control.TextField
+import javafx.scene.control.TextInputDialog
+import javafx.scene.layout.GridPane
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+class GenerationController implements EventListener, Initializable, Controller {
+
+	var app : SudokuApplication
+
+	var sudoku : Sudoku
+
+	var id = UUID::randomUUID
+
+	var ^space : OpenEventSpace
+
+	var sudokuView : SudokuView
+
+	@FXML
+	var grid : GridPane
+
+	@FXML
+	var save : Button
+
+	def initialize(location : URL, resources : ResourceBundle) {
+		save.disable = true
+		sudokuView = new SudokuView(grid, sudoku)
+	}
+
+	@FXML
+	def saveSudoku(e : ActionEvent) {
+		var newSudoku = new Sudoku()
+		newSudoku.difficulty = app.askDifficulty
+		var cpt = 0
+		switch (newSudoku.difficulty) {
+			case FACILE: cpt = 20
+			case MOYEN: cpt = 30
+			case DIFFICILE: cpt = 40
+			case DIABOLIQUE: cpt = 50
+		}
+		while (cpt > 0) {
+			var rnd1 = new Random
+			var rnd2 = new Random
+			var value : Integer
+			var v1 : int
+			var v2 : int
+			do {
+				v1 = rnd1.nextInt(8)
+				v2 = rnd2.nextInt(8)
+				value = sudoku.getValue(v1, v2)
+			} while (value === null);
+			sudokuView.updateSudoku(v1, v2, null, false)
+			cpt--
+		}
+		for (var i = 0; i < 9; i++) {
+			for (var j = 0; j < 9; j++) {
+				var children = grid.getChildren()
+				for (child : children) {
+					if (child instanceof TextField) {
+						var text = child.text
+						var row = GridPane.getRowIndex(child)
+						var col = GridPane.getColumnIndex(child)
+						if(text != "") newSudoku.setValue(row, col, Integer.parseInt(text))
+					}
+				}
+			}
+		}
+		newSudoku.name = askName(false)
+		app.dao.addSudoku(newSudoku);
+		app.openHomeStage
+	}
+
+	new (app : SudokuApplication, sudoku : Sudoku, ^space : OpenEventSpace) {
+		this.app = app
+		this.sudoku = sudoku
+		setUISpace(^space)
+		emitToAgents(new SpawnRequired => [controller = this])
+	}
+
+	def setUISpace(^space : OpenEventSpace) {
+		this.^space?.unregister(this)
+		this.^space = ^space
+		this.^space?.register(this)
+	}
+
+	def receiveEvent(^event : Event) {
+		if (^event instanceof UpdateSudoku) {
+			sudokuView.updateSudoku(^event.x, ^event.y, ^event.solution, ^event.definitive)
+		}
+		if (^event instanceof SudokuResolved){
+			save.disable = false
+		}
+	}
+
+	def getID : UUID {
+		return id
+	}
+
+	def emitToAgents(^event : Event) : void {
+		if (this.^space !== null) {
+			this.^space.emit(id, ^event)
+		}
+	}
+
+	def getSudoku : Sudoku {
+		return this.sudoku
+	}
+
+	def enableStart {
+		var algoList = new ArrayList<Algorithms>
+		algoList.add(Algorithms.ECO_RESOLUTION)
+		emitToAgents(new Resolve => [algos = algoList])
+	}
+
+	def askName(nameTaken : boolean) : String {
+		var dialog = new TextInputDialog();
+		dialog.initOwner(save.scene.window)
+		dialog.headerText = "Choisir un nom"
+		dialog.setTitle("Nom");
+		if (!nameTaken) {
+			dialog.setContentText("Choisissez un nom");
+		} else {
+			dialog.setContentText("Choisissez un autre nom, celui-ci existe déjà");
+		}
+		var result : Optional<String>
+		result = dialog.showAndWait();
+		if (result.get == "") {
+			askName(false)
+		} else {
+			if (app.getDao().nameExists(result.get)) {
+				askName(true)
+			}
+
+			return result.get()
+		}
+	}
+}

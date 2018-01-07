@@ -23,7 +23,6 @@ import java.util.Map
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.locks.ReentrantLock
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -39,12 +38,9 @@ behavior EcoResolutionBehavior {
 	var agentsValues = new ConcurrentHashMap<UUID, Integer>
 	var blocValues = new ConcurrentHashMap<UUID, Integer>
 
-	var nbUnchanged = 0
-	val maxNbUnchanged = 30000
-	var tokenReceivedSatisfiedLock = new ReentrantLock
-
 	on Initialize {
 		setSkill(sudokuCommunicationSkill, SudokuCommunication)
+		info("Prêt pour l'éco-résolution")
 	}
 
 	new(^agent : Agent, values : ConcurrentLinkedQueue<Integer>, s : SudokuBaseCommunication) {
@@ -130,9 +126,7 @@ behavior EcoResolutionBehavior {
 	}
 
 	def changeValue(value : int, tokenRealease : boolean) {
-		nbUnchanged = 0
 		actualValue = value
-		// emit(new EcoValue => [x = getX; y = getY; value = actualValue])
 		emitToAllHolons(new EcoValue => [x = getX; y = getY; value = actualValue;  token = tokenRealease])
 	}
 

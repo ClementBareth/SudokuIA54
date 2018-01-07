@@ -16,9 +16,9 @@ import io.sarl.core.InnerContextAccess
 import io.sarl.core.Lifecycle
 import io.sarl.core.Logging
 import io.sarl.core.MemberLeft
+import java.util.HashSet
 import java.util.List
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 
 /** 
  * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
@@ -29,7 +29,7 @@ agent RowAndColAgent {
 
 	var position : Integer
 	var values : List<Integer>
-	var agents = new ConcurrentHashMap<Integer, UUID>
+	var agents = new HashSet<UUID>
 	var agentType : RegionTypeEnum
 
 	on Initialize {
@@ -39,6 +39,7 @@ agent RowAndColAgent {
 			this.agentType = occurrence.parameters.get(2) as RegionTypeEnum
 			loggingName = agentType + " n° " + position
 		}
+		info("Spawned")
 		emit(new RegionAgentSpawned => [
 			it.num = position;
 			contextId = innerContext.ID;
@@ -59,16 +60,18 @@ agent RowAndColAgent {
 	}
 
 	on Resolve [!isFromMe] {
-		wake(new Values => [values = this.values; type = this.agentType; it.agents = this.agents.values.toSet])
+		wake(new Values => [values = this.values; type = this.agentType; it.agents = this.agents])
 	}
 
 	on Position {
-		agents.put(occurrence.pos, occurrence.id)
+		agents.add(occurrence.id)
+		info(agents.size +"/"+countZeros + " agents.")
 		if (agents.size == countZeros) {
+			info("Initialisée.")
 			emit(
 				new RegionAgentInitialized => [
-					it.id = ID;
-					it.type = this.agentType;
+					id = ID;
+					type = this.agentType;
 				]
 			)
 		}

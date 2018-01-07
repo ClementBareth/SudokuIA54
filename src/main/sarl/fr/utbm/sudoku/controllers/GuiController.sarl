@@ -33,6 +33,11 @@ class GuiController implements Initializable {
 	}
 	
 	@FXML
+	def generate(e : Event) {
+		app.generate()	
+	}
+	
+	@FXML
 	def askDifficulty(e : Event){
 		var diff = app.askDifficulty
 		if (e.target == saisir){

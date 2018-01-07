@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Random;
 
 import org.dizitart.no2.objects.Id;
 
@@ -87,10 +88,10 @@ public class Sudoku {
 	}
 
 	public Position getBlocWithMostDoublons() {
-		Position nullValue = getNullValue();
+		Position nullValuePosition = getNullValue();
 		int row = 0;
 		int col = 0;
-		if (nullValue == null) {
+		if (nullValuePosition == null) {
 			HashMap<Position, Integer> blocsDoublons = new HashMap<>();
 			for (int i = 0; i < 9; i++) {
 				for (int j = 0; j < 9; j++) {
@@ -102,8 +103,8 @@ public class Sudoku {
 					}
 				}
 			}
-			if (!blocsDoublons.isEmpty()) {
-				Integer maxInBlocs = Collections.max(blocsDoublons.values());
+			Integer maxInBlocs = Collections.max(blocsDoublons.values());
+			if (maxInBlocs.intValue() > 0) {
 				List<Position> blocs = new ArrayList<>();
 				for (Entry<Position, Integer> e : blocsDoublons.entrySet()) {
 					if (e.getValue().equals(maxInBlocs)) {
@@ -121,6 +122,10 @@ public class Sudoku {
 				}
 				Integer maxInRows = Collections.max(rowsDoublons.values());
 				Integer maxInCols = Collections.max(colsDoublons.values());
+				if (maxInRows.equals(new Integer(0)) && maxInCols.equals(new Integer(0))) {
+					// Le sudoku est résolu
+					return null;
+				}
 				List<Integer> xs = new ArrayList<>();
 				List<Integer> ys = new ArrayList<>();
 
@@ -134,16 +139,22 @@ public class Sudoku {
 						ys.add(new Integer(e.getKey().intValue()));
 					}
 				}
-				
-				// TODO traiter cas où une des deux listes est vide
+				if (xs.isEmpty()) {
+					Random rnd = new Random();
+					xs.add(new Integer(rnd.nextInt(8)));
+				}
+				if (ys.isEmpty()) {
+					Random rnd = new Random();
+					xs.add(new Integer(rnd.nextInt(8)));
+				}
 				Collections.shuffle(xs);
 				row = xs.get(0).intValue() / 3;
 				Collections.shuffle(ys);
 				col = ys.get(0).intValue() / 3;
 			}
 		} else {
-			row = nullValue.getX() / 3;
-			col = nullValue.getY() / 3;
+			row = nullValuePosition.getX() / 3;
+			col = nullValuePosition.getY() / 3;
 		}
 		return new Position(row * 3, col * 3);
 	}
@@ -153,7 +164,7 @@ public class Sudoku {
 			List<Integer> row = getRow(i);
 			int col = 0;
 			for (Integer value : row) {
-				if (value == null) {
+				if (value == null || value.equals(new Integer(0))) {
 					return new Position(i, col);
 				} else {
 					col++;
@@ -168,7 +179,7 @@ public class Sudoku {
 		return getDoublons(values);
 	}
 
-	private int getDoublons(List<Integer> values) {
+	private static int getDoublons(List<Integer> values) {
 		int occurrences = 0;
 		for (int i = 1; i <= 9; i++) {
 			int freq = Collections.frequency(values, new Integer(i));
@@ -195,12 +206,12 @@ public class Sudoku {
 
 	@Override
 	public String toString() {
-		String str = "\n";
+		String str = "\n"; //$NON-NLS-1$
 		for (int i = 0; i < 9; i++) {
 			for (int j = 0; j < 9; j++) {
-				str += matrix[j][i] + " ";
+				str += this.matrix[j][i] + " "; //$NON-NLS-1$
 			}
-			str += "\n";
+			str += "\n"; //$NON-NLS-1$
 		}
 		return str;
 	}

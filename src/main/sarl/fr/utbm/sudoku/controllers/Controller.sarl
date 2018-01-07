@@ -1,0 +1,16 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.controllers
+
+import fr.utbm.sudoku.model.Sudoku
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+interface Controller {
+	
+	def getSudoku : Sudoku
+	def enableStart
+}

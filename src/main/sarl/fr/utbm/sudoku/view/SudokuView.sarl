@@ -1,0 +1,80 @@
+/** 
+ * 
+ */
+package fr.utbm.sudoku.view
+
+import fr.utbm.sudoku.model.Sudoku
+import javafx.application.Platform
+import javafx.geometry.HPos
+import javafx.geometry.Pos
+import javafx.geometry.VPos
+import javafx.scene.control.Label
+import javafx.scene.layout.GridPane
+import javafx.scene.paint.Color
+
+/** 
+ * @author Clément Bareth-Desgranges <clement.bareth@gmail.com>
+ * 
+ */
+class SudokuView {
+	
+	var grid : GridPane
+	var sudoku : Sudoku
+	
+	new (grid : GridPane, sudoku : Sudoku){
+		this.grid = grid
+		this.sudoku = sudoku
+		for (var i = 0; i < 9; i++) {
+			for (var j = 0; j < 9; j++) {
+				var label : Label
+				if (sudoku.getValue(i, j) !== null && sudoku.getValue(i, j) !== 0) {
+					label = new Label("" + sudoku.getValue(i, j))
+					label.textFill = Color.GREEN
+				} else {
+					label = new Label
+				}
+				label.alignment = Pos.CENTER
+				GridPane.setConstraints(label, i, j)
+				GridPane.setHalignment(label, HPos.CENTER)
+				GridPane.setValignment(label, VPos.CENTER)
+				grid.children.add(label)
+			}
+		}
+	}
+
+	def public setLabel(x : Integer, y : Integer, value : Integer) {
+		var label = getLabelAt(x, y)
+		if(value === null) label.text = ""
+		else label.text = "" + value
+	}
+
+	def public getLabelAt(x : Integer, y : Integer) : Label {
+		for (var i = 0; i < 9; i++) {
+			for (var j = 0; j < 9; j++) {
+				var children = grid.getChildren()
+				for (child : children) {
+					if (child instanceof Label) {
+						if (GridPane.getRowIndex(child) == x && GridPane.getColumnIndex(child) == y) {
+							return child
+						}
+					}
+				}
+			}
+		}
+	}
+
+	def updateSudoku(x : Integer, y : Integer, value : Integer, definitive : boolean) {
+		Platform.runLater([
+			try {
+				sudoku.setValue(x, y, value)
+				setLabel(x, y, value)
+				if (definitive) {
+					getLabelAt(x, y).textFill = Color.GREEN
+				}
+			} catch (e : Exception) {
+				e.printStackTrace
+			}
+		])
+	}
+	
+}
